@@ -2,14 +2,24 @@
 // DADOS MOCKADOS
 // ==========================================
 
+/** Uma linha da OS: um serviço executado sobre um equipamento. */
+export type ItemOS = {
+  equipamento: string
+  servico: string
+  valor: string
+}
+
 export type OrdemServico = {
   id: string
   cliente: string
-  equipamento: string
+  /** Uma OS pode ter vários serviços, inclusive para equipamentos diferentes. */
+  itens: ItemOS[]
   status: "EM_ANDAMENTO" | "CONCLUIDO" | "ENTREGUE"
-  prazo: string
+  /** Data em que o equipamento entrou na oficina. */
+  entrada: string
+  /** Soma dos itens, já formatada. */
   valor: string
-  /** Sinaliza prazo vencido para destacar a linha na tabela. */
+  /** Sinaliza atendimento em atraso para destacar no painel. */
   atrasada?: boolean
 }
 
@@ -49,12 +59,61 @@ export type Notificacao = {
 }
 
 export const mockOS: OrdemServico[] = [
-  { id: "OS-1042", cliente: "João Silva", equipamento: "Torno Mecânico CNC", status: "EM_ANDAMENTO", prazo: "30/05/2026", valor: "R$ 850,00" },
-  { id: "OS-1041", cliente: "Oficina do Beto", equipamento: "Furadeira de Bancada", status: "CONCLUIDO", prazo: "28/05/2026", valor: "R$ 120,00" },
-  { id: "OS-1040", cliente: "Maria Souza", equipamento: "Serra Circular", status: "ENTREGUE", prazo: "25/05/2026", valor: "R$ 300,00" },
-  { id: "OS-1039", cliente: "Indústria Apex", equipamento: "Motor Elétrico Trifásico", status: "EM_ANDAMENTO", prazo: "02/06/2026", valor: "R$ 1.200,00" },
-  { id: "OS-1038", cliente: "Metalúrgica Rio Verde", equipamento: "Compressor de Ar 20pcm", status: "EM_ANDAMENTO", prazo: "22/05/2026", valor: "R$ 640,00", atrasada: true },
-  { id: "OS-1037", cliente: "Carlos Andrade", equipamento: "Esmerilhadeira Angular", status: "CONCLUIDO", prazo: "20/05/2026", valor: "R$ 95,00" },
+  {
+    id: "OS-1042",
+    cliente: "João Silva",
+    itens: [{ equipamento: "Torno Mecânico CNC", servico: "Usinagem de Eixo", valor: "R$ 850,00" }],
+    status: "EM_ANDAMENTO",
+    entrada: "30/05/2026",
+    valor: "R$ 850,00",
+  },
+  {
+    id: "OS-1041",
+    cliente: "Oficina do Beto",
+    itens: [{ equipamento: "Furadeira de Bancada", servico: "Revisão Geral", valor: "R$ 120,00" }],
+    status: "CONCLUIDO",
+    entrada: "28/05/2026",
+    valor: "R$ 120,00",
+  },
+  {
+    id: "OS-1040",
+    cliente: "Maria Souza",
+    itens: [{ equipamento: "Serra Circular", servico: "Troca de Rolamento", valor: "R$ 300,00" }],
+    status: "ENTREGUE",
+    entrada: "25/05/2026",
+    valor: "R$ 300,00",
+  },
+  {
+    id: "OS-1039",
+    cliente: "Indústria Apex",
+    itens: [
+      { equipamento: "Motor Elétrico Trifásico", servico: "Rebobinamento Trifásico", valor: "R$ 450,00" },
+      { equipamento: "Compressor Schulz CSL 20BR", servico: "Revisão Geral", valor: "R$ 750,00" },
+    ],
+    status: "EM_ANDAMENTO",
+    entrada: "02/06/2026",
+    valor: "R$ 1.200,00",
+  },
+  {
+    id: "OS-1038",
+    cliente: "Metalúrgica Rio Verde",
+    itens: [
+      { equipamento: "Compressor de Ar 20pcm", servico: "Diagnóstico Técnico", valor: "R$ 60,00" },
+      { equipamento: "Compressor de Ar 20pcm", servico: "Troca de Rolamento", valor: "R$ 580,00" },
+    ],
+    status: "EM_ANDAMENTO",
+    entrada: "22/05/2026",
+    valor: "R$ 640,00",
+    atrasada: true,
+  },
+  {
+    id: "OS-1037",
+    cliente: "Carlos Andrade",
+    itens: [{ equipamento: "Esmerilhadeira Angular", servico: "Revisão Geral", valor: "R$ 95,00" }],
+    status: "CONCLUIDO",
+    entrada: "20/05/2026",
+    valor: "R$ 95,00",
+  },
 ]
 
 export const mockClientes: Cliente[] = [
@@ -71,6 +130,7 @@ export const mockEquipamentos: Equipamento[] = [
   { id: "3", tipo: "Motor Elétrico", marca: "WEG", modelo: "W22 Plus", cliente: "Indústria Apex", serie: "WG-W22-1093" },
   { id: "4", tipo: "Compressor", marca: "Chiaperini", modelo: "20 PCM APV", cliente: "Metalúrgica Rio Verde", serie: "CH-20A-7730" },
   { id: "5", tipo: "Serra Circular", marca: "Makita", modelo: "5007N", cliente: "Maria Souza", serie: "MK-5007-2214" },
+  { id: "6", tipo: "Compressor", marca: "Schulz", modelo: "CSL 20BR", cliente: "Indústria Apex", serie: "SZ-CSL-5521" },
 ]
 
 // Novos dados baseados na modelagem de NotificacaoCliente e precificação base

@@ -13,6 +13,7 @@ export function Field({
   hint,
   error,
   required,
+  optional,
   className,
   children,
 }: {
@@ -21,6 +22,8 @@ export function Field({
   hint?: string
   error?: string
   required?: boolean
+  /** Deixa explícito que o campo pode ficar em branco. */
+  optional?: boolean
   className?: string
   children: ReactNode
 }) {
@@ -31,6 +34,11 @@ export function Field({
         {required && (
           <span aria-hidden className="-ml-1 text-destructive">
             *
+          </span>
+        )}
+        {optional && !required && (
+          <span className="ml-1 text-xs font-normal text-muted-foreground">
+            (opcional)
           </span>
         )}
       </Label>
