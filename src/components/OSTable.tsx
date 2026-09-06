@@ -1,4 +1,4 @@
-import { MoreHorizontal, TriangleAlert } from "lucide-react"
+import { MoreHorizontal } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/table"
 import { Initials } from "@/components/Initials"
 import { OSStatusBadge } from "@/components/StatusBadge"
-import { cn } from "@/lib/utils"
+import { resumoEquipamentos } from "@/lib/os"
 import type { OrdemServico } from "@/data/mocks"
 
 export function OSTable({
@@ -26,11 +26,11 @@ export function OSTable({
     <Table>
       <TableHeader>
         <TableRow className="hover:bg-transparent">
-          <TableHead className="w-[110px]">OS</TableHead>
+          <TableHead className="w-[110px]">ID</TableHead>
           <TableHead>Cliente</TableHead>
           <TableHead className="hidden md:table-cell">Equipamento</TableHead>
           <TableHead>Status</TableHead>
-          <TableHead className="hidden sm:table-cell">Prazo</TableHead>
+          <TableHead className="hidden sm:table-cell">Entrada</TableHead>
           <TableHead className="text-right">Valor</TableHead>
           {!compact && <TableHead className="w-12" />}
         </TableRow>
@@ -50,23 +50,15 @@ export function OSTable({
             </TableCell>
 
             <TableCell className="hidden max-w-[220px] truncate md:table-cell text-muted-foreground">
-              {os.equipamento}
+              {resumoEquipamentos(os.itens)}
             </TableCell>
 
             <TableCell>
               <OSStatusBadge status={os.status} />
             </TableCell>
 
-            <TableCell className="hidden sm:table-cell">
-              <span
-                className={cn(
-                  "inline-flex items-center gap-1.5",
-                  os.atrasada ? "font-medium text-destructive" : "text-muted-foreground"
-                )}
-              >
-                {os.atrasada && <TriangleAlert className="size-3.5" />}
-                {os.prazo}
-              </span>
+            <TableCell className="hidden text-muted-foreground sm:table-cell">
+              {os.entrada}
             </TableCell>
 
             <TableCell className="text-right font-medium">{os.valor}</TableCell>

@@ -1,5 +1,5 @@
 import { useState } from "react"
-import type { FormEvent } from "react"
+import type { FormEvent, ReactNode } from "react"
 import { Plus } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -29,16 +29,31 @@ const VAZIO = { nome: "", descricao: "", valorBase: "" }
 
 export function NovoServicoDialog({
   onCreated,
+  trigger,
+  open: openControlado,
+  onOpenChange,
 }: {
   onCreated?: (servico: Servico) => void
+  /**
+   * Botão que abre o diálogo. Passe `null` quando ele for aberto por fora
+   * (ex.: pelo seletor de serviço da Nova OS).
+   */
+  trigger?: ReactNode
+  /** Modo controlado — usado quando não há gatilho próprio. */
+  open?: boolean
+  onOpenChange?: (aberto: boolean) => void
 }) {
   const { addServico } = useDados()
-  const [open, setOpen] = useState(false)
+  const [openInterno, setOpenInterno] = useState(false)
   const [form, setForm] = useState(VAZIO)
   const [erros, setErros] = useState<Erros>({})
 
+  const controlado = openControlado !== undefined
+  const open = controlado ? openControlado : openInterno
+
   const fechar = (aberto: boolean) => {
-    setOpen(aberto)
+    if (!controlado) setOpenInterno(aberto)
+    onOpenChange?.(aberto)
     if (!aberto) {
       setForm(VAZIO)
       setErros({})
@@ -67,12 +82,16 @@ export function NovoServicoDialog({
 
   return (
     <Dialog open={open} onOpenChange={fechar}>
-      <DialogTrigger asChild>
-        <Button>
-          <Plus />
-          Novo serviço
-        </Button>
-      </DialogTrigger>
+      {trigger !== null && (
+        <DialogTrigger asChild>
+          {trigger ?? (
+            <Button>
+              <Plus />
+              Novo serviço
+            </Button>
+          )}
+        </DialogTrigger>
+      )}
 
       <DialogContent>
         <DialogForm onSubmit={handleSubmit} noValidate>
