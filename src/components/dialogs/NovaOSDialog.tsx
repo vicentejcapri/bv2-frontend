@@ -199,7 +199,7 @@ export function NovaOSDialog({
     } catch (error) {
       // O formulário continua aberto para o usuário tentar de novo.
       falha({
-        titulo: "Não foi possível abrir a OS",
+        titulo: "Não foi possível abrir a ordem de serviço",
         descricao:
           error instanceof Error
             ? error.message
@@ -215,7 +215,7 @@ export function NovaOSDialog({
         {trigger ?? (
           <Button>
             <Plus />
-            Nova OS
+            Nova ordem de serviço
           </Button>
         )}
       </DialogTrigger>
@@ -225,7 +225,8 @@ export function NovaOSDialog({
           <DialogHeader>
             <DialogTitle>Nova ordem de serviço</DialogTitle>
             <DialogDescription>
-              Ao salvar, o cliente recebe o aviso de abertura pelo WhatsApp.
+              Os avisos ao cliente pelo WhatsApp saem na conclusão e na
+              entrega, conforme configurado em Notificações.
             </DialogDescription>
           </DialogHeader>
 
@@ -259,7 +260,7 @@ export function NovaOSDialog({
                 label="Data de entrada"
                 required
                 error={erros.entrada}
-                hint="Ajuste se a OS for de outro dia."
+                hint="Ajuste se a ordem de serviço for de outro dia."
               >
                 <Input
                   {...fieldProps("os-entrada", erros.entrada)}
@@ -299,7 +300,7 @@ export function NovaOSDialog({
               <p className="flex items-start gap-2 rounded-lg bg-warning-soft px-3 py-2 text-xs text-warning-soft-foreground">
                 <TriangleAlert className="mt-0.5 size-3.5 shrink-0" />
                 Este cliente ainda não tem equipamentos. Cadastre um em
-                Equipamentos antes de abrir a OS.
+                Equipamentos antes de abrir a ordem de serviço.
               </p>
             )}
 
@@ -478,7 +479,7 @@ export function NovaOSDialog({
               id="os-observacoes"
               label="Defeito relatado"
               optional
-              hint="Aparece na impressão da OS."
+              hint="Aparece na impressão da ordem de serviço."
             >
               <Textarea
                 id="os-observacoes"
@@ -498,7 +499,7 @@ export function NovaOSDialog({
                 Cancelar
               </Button>
             </DialogClose>
-            <Button type="submit">Abrir OS</Button>
+            <Button type="submit">Abrir ordem de serviço</Button>
           </DialogFooter>
         </DialogForm>
       </DialogContent>

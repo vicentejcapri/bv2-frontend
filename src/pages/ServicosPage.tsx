@@ -74,8 +74,8 @@ export function ServicosPage() {
           </Table>
         </CardFlush>
         <CardFooter className="text-xs text-muted-foreground">
-          Valores de referência — podem ser ajustados por OS na hora do
-          orçamento.
+          Valores de referência — podem ser ajustados em cada ordem de serviço
+          na hora do orçamento.
         </CardFooter>
       </Card>
     </>

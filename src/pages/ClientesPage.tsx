@@ -38,7 +38,7 @@ export function ClientesPage() {
                 <TableHead>Tipo</TableHead>
                 <TableHead>Telefone</TableHead>
                 <TableHead className="hidden md:table-cell">Cidade</TableHead>
-                <TableHead className="text-right">OS</TableHead>
+                <TableHead className="text-right">Ordens de serviço</TableHead>
                 <TableHead className="w-12" />
               </TableRow>
             </TableHeader>

@@ -6,6 +6,8 @@ import type {
   Notificacao,
   OrdemServico,
   Servico,
+  StatusNotificavel,
+  TemplateNotificacao,
 } from "@/data/mocks"
 
 /** Campos preenchidos no formulário — o id e derivados saem do provider. */
@@ -20,10 +22,13 @@ export type DadosContextValue = {
   servicos: Servico[]
   ordens: OrdemServico[]
   notificacoes: Notificacao[]
+  templatesNotificacao: TemplateNotificacao[]
   addCliente: (dados: NovoClienteInput) => Cliente
   addEquipamento: (dados: NovoEquipamentoInput) => Equipamento
   addServico: (dados: NovoServicoInput) => Servico
   addOrdem: (dados: NovaOSInput) => OrdemServico
+  /** Liga ou desliga o aviso automático de um status (PUT por status na API). */
+  atualizarTemplateNotificacao: (status: StatusNotificavel, ativo: boolean) => void
 }
 
 export const DadosContext = createContext<DadosContextValue | undefined>(

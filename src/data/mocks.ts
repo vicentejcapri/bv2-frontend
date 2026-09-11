@@ -58,6 +58,21 @@ export type Notificacao = {
   data: string
 }
 
+/** Status da OS que disparam aviso automático — abertura não notifica. */
+export type StatusNotificavel = Exclude<OrdemServico["status"], "EM_ANDAMENTO">
+
+/**
+ * Configuração do aviso automático de um status: o texto e se ele sai.
+ * Espelha o TemplateNotificacaoResponse do backend.
+ */
+export type TemplateNotificacao = {
+  status: StatusNotificavel
+  /** Texto com placeholders ({cliente}, {os}, ...), resolvidos no envio. */
+  conteudo: string
+  ativo: boolean
+  atualizadoEm: string
+}
+
 export const mockOS: OrdemServico[] = [
   {
     id: "OS-1042",
@@ -148,4 +163,10 @@ export const mockNotificacoes: Notificacao[] = [
   { id: "NOT-503", os: "OS-1039", cliente: "Indústria Apex", tipo: "PERSONALIZADO", status: "FALHOU", data: "27/05/2026 11:10" },
   { id: "NOT-504", os: "OS-1040", cliente: "Maria Souza", tipo: "PERSONALIZADO", status: "PENDENTE", data: "30/05/2026 10:00" },
   { id: "NOT-505", os: "OS-1038", cliente: "Metalúrgica Rio Verde", tipo: "PRAZO_ENCERRADO", status: "ENVIADO", data: "26/05/2026 16:45" },
+]
+
+// Mesmos textos semeados na migration V18 do backend.
+export const mockTemplatesNotificacao: TemplateNotificacao[] = [
+  { status: "CONCLUIDO", conteudo: "Olá, {cliente}! O serviço da ordem #{os} foi concluído e o equipamento já pode ser retirado. Valor: R$ {valor}. - M2 Equipamentos", ativo: true, atualizadoEm: "30/05/2026 09:00" },
+  { status: "ENTREGUE", conteudo: "Olá, {cliente}! Confirmamos a entrega do equipamento da ordem #{os}. Obrigado pela preferência! - M2 Equipamentos", ativo: false, atualizadoEm: "30/05/2026 09:00" },
 ]
