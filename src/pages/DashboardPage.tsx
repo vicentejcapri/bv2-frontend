@@ -24,6 +24,7 @@ import { NotificacaoStatusBadge } from "@/components/StatusBadge"
 import { NovaOSDialog } from "@/components/dialogs/NovaOSDialog"
 import { useDados } from "@/hooks/useDados"
 import { formatBRL, parseMoeda } from "@/lib/format"
+import { numeroOS } from "@/lib/os"
 
 export function DashboardPage() {
   const { ordens, notificacoes } = useDados()
@@ -59,7 +60,7 @@ export function DashboardPage() {
       {/* Indicadores */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
-          label="OS em aberto"
+          label="Ordens de serviço em aberto"
           value={String(emAndamento.length)}
           hint="Serviços ainda na bancada"
           icon={Clock}
@@ -83,7 +84,7 @@ export function DashboardPage() {
         <StatCard
           label="Faturamento previsto"
           value={formatBRL(faturamentoPrevisto)}
-          hint="Baseado nas OS em andamento"
+          hint="Baseado nas ordens de serviço em andamento"
           icon={DollarSign}
           tone="accent"
         />
@@ -118,7 +119,11 @@ export function DashboardPage() {
           <Card>
             <CardHeader>
               <CardTitle>Distribuição por status</CardTitle>
-              <CardDescription>Total de {total} OS no período.</CardDescription>
+              <CardDescription>
+                Total de {total}{" "}
+                {total === 1 ? "ordem de serviço" : "ordens de serviço"} no
+                período.
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex h-2 w-full overflow-hidden rounded-full bg-muted">
@@ -176,7 +181,7 @@ export function DashboardPage() {
                         {notif.cliente}
                       </p>
                       <p className="truncate text-xs text-muted-foreground">
-                        <span className="font-mono">{notif.os}</span> ·{" "}
+                        <span className="font-mono">{numeroOS(notif.os)}</span> ·{" "}
                         {notif.data}
                       </p>
                     </div>

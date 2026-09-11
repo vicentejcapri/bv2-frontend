@@ -2,6 +2,14 @@ import { parseMoeda } from "@/lib/format"
 import type { ItemOS } from "@/data/mocks"
 
 /**
+ * "OS-1042" -> "Nº 1042". "OS" é abreviação nossa; na tela o usuário lê
+ * sempre "ordem de serviço", então o prefixo não aparece.
+ */
+export function numeroOS(id: string) {
+  return `Nº ${id.replace(/^OS-/, "")}`
+}
+
+/**
  * Soma os itens da OS. Os valores ficam formatados nos dados, então a conta
  * passa pelo parse antes de somar.
  */

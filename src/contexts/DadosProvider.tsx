@@ -7,8 +7,16 @@ import {
   mockNotificacoes,
   mockOS,
   mockServicos,
+  mockTemplatesNotificacao,
 } from "@/data/mocks"
-import type { Cliente, Equipamento, OrdemServico, Servico } from "@/data/mocks"
+import type {
+  Cliente,
+  Equipamento,
+  OrdemServico,
+  Servico,
+  StatusNotificavel,
+  TemplateNotificacao,
+} from "@/data/mocks"
 import {
   DadosContext,
   type NovaOSInput,
@@ -24,6 +32,14 @@ function proximoCodigo(ids: string[], prefixo: string, digitos: number) {
     return Number.isFinite(numero) ? Math.max(maximo, numero) : maximo
   }, 0)
   return `${prefixo}-${String(maior + 1).padStart(digitos, "0")}`
+}
+
+/** Agora no formato "30/05/2026 09:15", o mesmo das datas dos mocks. */
+function agoraBR() {
+  return new Date().toLocaleString("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "short",
+  }).replace(",", "")
 }
 
 /** Próximo id numérico simples (clientes e equipamentos). */
@@ -43,6 +59,9 @@ export function DadosProvider({ children }: { children: ReactNode }) {
     useState<Equipamento[]>(mockEquipamentos)
   const [servicos, setServicos] = useState<Servico[]>(mockServicos)
   const [ordens, setOrdens] = useState<OrdemServico[]>(mockOS)
+  const [templatesNotificacao, setTemplatesNotificacao] = useState<
+    TemplateNotificacao[]
+  >(mockTemplatesNotificacao)
 
   const addCliente = useCallback(
     (dados: NovoClienteInput) => {
@@ -101,6 +120,19 @@ export function DadosProvider({ children }: { children: ReactNode }) {
     [ordens]
   )
 
+  const atualizarTemplateNotificacao = useCallback(
+    (status: StatusNotificavel, ativo: boolean) => {
+      setTemplatesNotificacao((atuais) =>
+        atuais.map((template) =>
+          template.status === status
+            ? { ...template, ativo, atualizadoEm: agoraBR() }
+            : template
+        )
+      )
+    },
+    []
+  )
+
   const value = useMemo(
     () => ({
       clientes,
@@ -108,20 +140,24 @@ export function DadosProvider({ children }: { children: ReactNode }) {
       servicos,
       ordens,
       notificacoes: mockNotificacoes,
+      templatesNotificacao,
       addCliente,
       addEquipamento,
       addServico,
       addOrdem,
+      atualizarTemplateNotificacao,
     }),
     [
       clientes,
       equipamentos,
       servicos,
       ordens,
+      templatesNotificacao,
       addCliente,
       addEquipamento,
       addServico,
       addOrdem,
+      atualizarTemplateNotificacao,
     ]
   )
 

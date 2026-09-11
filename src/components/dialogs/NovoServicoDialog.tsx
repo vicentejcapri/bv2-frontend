@@ -99,7 +99,7 @@ export function NovoServicoDialog({
             <DialogTitle>Novo serviço base</DialogTitle>
             <DialogDescription>
               Valor de referência para agilizar orçamentos — pode ser ajustado
-              em cada OS.
+              em cada ordem de serviço.
             </DialogDescription>
           </DialogHeader>
 

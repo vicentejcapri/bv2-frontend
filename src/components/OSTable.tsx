@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/table"
 import { Initials } from "@/components/Initials"
 import { OSStatusBadge } from "@/components/StatusBadge"
-import { resumoEquipamentos } from "@/lib/os"
+import { numeroOS, resumoEquipamentos } from "@/lib/os"
 import type { OrdemServico } from "@/data/mocks"
 
 export function OSTable({
@@ -26,7 +26,7 @@ export function OSTable({
     <Table>
       <TableHeader>
         <TableRow className="hover:bg-transparent">
-          <TableHead className="w-[110px]">ID</TableHead>
+          <TableHead className="w-[110px]">Número</TableHead>
           <TableHead>Cliente</TableHead>
           <TableHead className="hidden md:table-cell">Equipamento</TableHead>
           <TableHead>Status</TableHead>
@@ -39,7 +39,7 @@ export function OSTable({
         {ordens.map((os) => (
           <TableRow key={os.id} className="group">
             <TableCell className="font-mono text-[0.8125rem] font-medium text-muted-foreground">
-              {os.id}
+              {numeroOS(os.id)}
             </TableCell>
 
             <TableCell>
@@ -71,7 +71,9 @@ export function OSTable({
                   className="opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100"
                 >
                   <MoreHorizontal />
-                  <span className="sr-only">Ações da {os.id}</span>
+                  <span className="sr-only">
+                    Ações da ordem de serviço {numeroOS(os.id)}
+                  </span>
                 </Button>
               </TableCell>
             )}

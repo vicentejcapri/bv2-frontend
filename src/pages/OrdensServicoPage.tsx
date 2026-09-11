@@ -18,7 +18,7 @@ export function OrdensServicoPage() {
       />
 
       <Card className="overflow-hidden">
-        <DataToolbar placeholder="Buscar por OS, cliente ou equipamento…" />
+        <DataToolbar placeholder="Buscar ordem de serviço, cliente ou equipamento…" />
         <CardFlush className="border-t-0">
           <OSTable ordens={ordens} />
         </CardFlush>

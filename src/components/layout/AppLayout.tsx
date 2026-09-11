@@ -127,8 +127,8 @@ export function AppLayout() {
             <div className="relative hidden lg:block">
               <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Buscar OS, cliente ou equipamento…"
-                className="w-72 bg-background pl-9"
+                placeholder="Buscar ordem de serviço, cliente ou equipamento…"
+                className="w-96 bg-background pl-9"
               />
             </div>
 
