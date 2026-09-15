@@ -1,14 +1,5 @@
+import { initialsOf } from "@/lib/format"
 import { cn } from "@/lib/utils"
-
-/** Duas primeiras iniciais de um nome ("Oficina do Beto" -> "OB"). */
-function initialsOf(name: string) {
-  return name
-    .split(/\s+/)
-    .filter((word) => word.length > 2 || /^[A-ZÀ-Ú]/.test(word))
-    .slice(0, 2)
-    .map((word) => word[0]?.toUpperCase() ?? "")
-    .join("")
-}
 
 export function Initials({
   name,

@@ -67,9 +67,21 @@
     --sidebar-border: 240 5% 18%;
 
     --radius: 0.625rem;
+
+    /* Séries de gráfico — ordem fixa, validada para daltonismo (skill dataviz).
+       Hex puro: não passam pelo hsl() do Tailwind. Use bg-[var(--chart-1)]. */
+    --chart-1: #2a78d6;                /* azul    */
+    --chart-2: #1baf7a;                /* água    */
+    --chart-3: #4a3aa7;                /* violeta */
+    --chart-4: #eb6834;                /* laranja */
   }
 
   .dark {
+    --chart-1: #3987e5;
+    --chart-2: #199e70;
+    --chart-3: #9085e9;
+    --chart-4: #d95926;
+
     --background: 240 10% 4%;
     --foreground: 0 0% 98%;
     --card: 240 6% 8%;

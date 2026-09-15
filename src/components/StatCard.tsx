@@ -58,7 +58,7 @@ export function StatCard({
       <div className="mt-3 flex items-baseline gap-2">
         <span
           className={cn(
-            "font-heading text-3xl font-semibold tracking-tight tabular-nums",
+            "font-heading text-3xl font-semibold tracking-tight",
             TONE_VALUE[tone]
           )}
         >

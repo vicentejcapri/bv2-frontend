@@ -117,7 +117,7 @@ export function AppLayout() {
 
             <div className="min-w-0 flex-1">
               <h2 className="truncate font-heading text-[0.9375rem] font-semibold tracking-tight text-foreground">
-                {currentPage?.label ?? "Painel"}
+                {currentPage?.label ?? "Dashboard"}
               </h2>
               <p className="hidden truncate text-xs text-muted-foreground sm:block">
                 {currentPage?.description}

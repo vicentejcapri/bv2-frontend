@@ -9,4 +9,14 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  server: {
+    // O backend não libera CORS: em dev o Vite repassa /api para o Spring.
+    proxy: {
+      "/api": {
+        target: "http://localhost:8080",
+        changeOrigin: true,
+        rewrite: (caminho) => caminho.replace(/^\/api/, ""),
+      },
+    },
+  },
 })

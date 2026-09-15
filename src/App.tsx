@@ -2,6 +2,9 @@ import { Navigate, Route, Routes } from "react-router-dom"
 import { AppLayout } from "@/components/layout/AppLayout"
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute"
 import { LoginPage } from "@/pages/LoginPage"
+import { EsqueciSenhaPage } from "@/pages/EsqueciSenhaPage"
+import { RedefinirSenhaPage } from "@/pages/RedefinirSenhaPage"
+import { ConfirmarEmailPage } from "@/pages/ConfirmarEmailPage"
 import { DashboardPage } from "@/pages/DashboardPage"
 import { OrdensServicoPage } from "@/pages/OrdensServicoPage"
 import { ClientesPage } from "@/pages/ClientesPage"
@@ -14,6 +17,10 @@ export default function App() {
     <Routes>
       {/* Rota pública */}
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/esqueci-senha" element={<EsqueciSenhaPage />} />
+      {/* Caminho fixo: é para cá que aponta o link do e-mail enviado pelo backend */}
+      <Route path="/redefinir-senha" element={<RedefinirSenhaPage />} />
+      <Route path="/confirmar-email" element={<ConfirmarEmailPage />} />
 
       {/* Rotas privadas: só entram quem está logado */}
       <Route element={<ProtectedRoute />}>

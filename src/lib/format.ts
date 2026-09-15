@@ -28,9 +28,16 @@ export function parseMoeda(mascarado: string) {
   return digitos ? Number(digitos) / 100 : 0
 }
 
-/** Máscara de telefone brasileiro, fixo ou celular. */
-export function maskTelefone(bruto: string) {
-  const d = bruto.replace(/\D/g, "").slice(0, 11)
+/**
+ * Máscara de telefone brasileiro, fixo ou celular. Com 12 ou 13 dígitos os dois
+ * primeiros viram o código do país: "5542999991111" -> "+55 (42) 99999-1111".
+ */
+export function maskTelefone(bruto: string): string {
+  const digitos = bruto.replace(/\D/g, "").slice(0, 13)
+  if (digitos.length > 11) {
+    return `+${digitos.slice(0, 2)} ${maskTelefone(digitos.slice(2))}`
+  }
+  const d = digitos
   if (d.length <= 2) return d.replace(/^(\d{0,2})/, "($1")
   if (d.length <= 6) return d.replace(/^(\d{2})(\d{0,4})/, "($1) $2")
   if (d.length <= 10) return d.replace(/^(\d{2})(\d{4})(\d{0,4})/, "($1) $2-$3")
@@ -50,4 +57,23 @@ export function hojeISO() {
   const mes = String(hoje.getMonth() + 1).padStart(2, "0")
   const dia = String(hoje.getDate()).padStart(2, "0")
   return `${hoje.getFullYear()}-${mes}-${dia}`
+}
+
+/** Duas primeiras iniciais de um nome ("Oficina do Beto" -> "OB"). */
+export function initialsOf(name: string) {
+  return name
+    .split(/\s+/)
+    .filter((word) => word.length > 2 || /^[A-ZÀ-Ú]/.test(word))
+    .slice(0, 2)
+    .map((word) => word[0]?.toUpperCase() ?? "")
+    .join("")
+}
+
+/** "2026-08" -> "agosto de 2026" */
+export function mesPorExtenso(mes: string) {
+  const [ano, m] = mes.split("-").map(Number)
+  return new Date(ano, m - 1, 1).toLocaleDateString("pt-BR", {
+    month: "long",
+    year: "numeric",
+  })
 }
