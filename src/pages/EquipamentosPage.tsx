@@ -1,4 +1,5 @@
-import { MoreHorizontal, Wrench } from "lucide-react"
+import { useCallback, useEffect, useState } from "react"
+import { Loader2, Plus, Wrench } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardFlush, CardFooter } from "@/components/ui/card"
@@ -10,82 +11,193 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { DataToolbar } from "@/components/DataToolbar"
+import { AcoesMenu } from "@/components/AcoesMenu"
+import { DataToolbar, EmptyState } from "@/components/DataToolbar"
+import { Initials } from "@/components/Initials"
 import { PageHeader } from "@/components/PageHeader"
-import { NovoEquipamentoDialog } from "@/components/dialogs/NovoEquipamentoDialog"
-import { useDados } from "@/hooks/useDados"
+import { EquipamentoDialog } from "@/components/dialogs/EquipamentoDialog"
+import { ExcluirDialog } from "@/components/dialogs/ExcluirDialog"
+import { useAuth } from "@/hooks/useAuth"
+import { ApiError } from "@/lib/api"
+import { excluirEquipamento, listarEquipamentos } from "@/lib/equipamento-api"
+import type { Equipamento } from "@/lib/equipamento-api"
+
+/** Diálogo aberto no momento: cadastro, edição ou confirmação de exclusão. */
+type Modal =
+  | { tipo: "novo" }
+  | { tipo: "editar"; equipamento: Equipamento }
+  | { tipo: "excluir"; equipamento: Equipamento }
 
 export function EquipamentosPage() {
-  const { equipamentos } = useDados()
+  const { token, logout } = useAuth()
+  const [equipamentos, setEquipamentos] = useState<Equipamento[] | null>(null)
+  const [erro, setErro] = useState<string | null>(null)
+  const [tentativa, setTentativa] = useState(0)
+  // O modal fica guardado depois de fechar para o conteúdo não mudar na animação de saída.
+  const [modal, setModal] = useState<Modal | null>(null)
+  const [aberto, setAberto] = useState(false)
+
+  const abrir = (proximo: Modal) => {
+    setModal(proximo)
+    setAberto(true)
+  }
+
+  useEffect(() => {
+    if (!token) return
+    let cancelado = false
+
+    listarEquipamentos(token)
+      .then((pagina) => {
+        if (cancelado) return
+        setEquipamentos(pagina.conteudo)
+        setErro(null)
+      })
+      .catch((error) => {
+        if (cancelado) return
+        if (error instanceof ApiError && error.status === 401) return logout()
+        setErro(
+          error instanceof ApiError
+            ? error.message
+            : "Não foi possível carregar os equipamentos."
+        )
+      })
+
+    return () => {
+      cancelado = true
+    }
+  }, [token, logout, tentativa])
+
+  const aoSalvar = useCallback((salvo: Equipamento, criado: boolean) => {
+    setEquipamentos((atuais) => {
+      const lista = criado
+        ? [...(atuais ?? []), salvo]
+        : (atuais ?? []).map((e) => (e.id === salvo.id ? salvo : e))
+      return lista.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
+    })
+  }, [])
+
+  const botaoNovo = (
+    <Button onClick={() => abrir({ tipo: "novo" })}>
+      <Plus />
+      Novo equipamento
+    </Button>
+  )
 
   return (
     <>
       <PageHeader
         title="Equipamentos"
-        description="Máquinas e dispositivos cadastrados para manutenção."
-        actions={<NovoEquipamentoDialog />}
+        description="Máquinas e dispositivos dos clientes cadastrados para manutenção."
+        actions={botaoNovo}
       />
 
       <Card className="overflow-hidden">
-        <DataToolbar placeholder="Buscar por tipo, marca, modelo ou série…" />
+        <DataToolbar placeholder="Buscar por equipamento, marca ou dono…" />
         <CardFlush className="border-t-0">
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead>Equipamento</TableHead>
-                <TableHead className="hidden sm:table-cell">Modelo</TableHead>
-                <TableHead className="hidden lg:table-cell">Nº de série</TableHead>
-                <TableHead>Proprietário</TableHead>
-                <TableHead className="w-12" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {equipamentos.map((eq) => (
-                <TableRow key={eq.id} className="group">
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-secondary text-secondary-foreground ring-1 ring-inset ring-border">
-                        <Wrench className="size-4" />
-                      </span>
-                      <div className="min-w-0">
-                        <p className="font-medium text-foreground">{eq.tipo}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {eq.marca}
-                        </p>
-                      </div>
-                    </div>
-                  </TableCell>
-
-                  <TableCell className="hidden sm:table-cell text-muted-foreground">
-                    {eq.modelo}
-                  </TableCell>
-
-                  <TableCell className="hidden lg:table-cell font-mono text-[0.8125rem] text-muted-foreground">
-                    {eq.serie}
-                  </TableCell>
-
-                  <TableCell className="font-medium">{eq.cliente}</TableCell>
-
-                  <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="icon-xs"
-                      className="opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100"
-                    >
-                      <MoreHorizontal />
-                      <span className="sr-only">Ações de {eq.tipo}</span>
-                    </Button>
-                  </TableCell>
+          {erro && !equipamentos ? (
+            <EmptyState
+              title="Não foi possível carregar os equipamentos"
+              description={erro}
+              action={
+                <Button variant="outline" onClick={() => setTentativa((n) => n + 1)}>
+                  Tentar novamente
+                </Button>
+              }
+            />
+          ) : !equipamentos ? (
+            <div
+              className="flex items-center justify-center gap-2 px-5 py-14 text-sm text-muted-foreground"
+              role="status"
+            >
+              <Loader2 className="size-4 animate-spin" aria-hidden />
+              Carregando equipamentos…
+            </div>
+          ) : equipamentos.length === 0 ? (
+            <EmptyState
+              title="Nenhum equipamento cadastrado"
+              description="Cadastre o equipamento de um cliente para usá-lo nas ordens de serviço."
+              action={botaoNovo}
+            />
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead>Equipamento</TableHead>
+                  <TableHead>Marca</TableHead>
+                  <TableHead>Dono</TableHead>
+                  <TableHead className="w-12" />
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {equipamentos.map((eq) => (
+                  <TableRow key={eq.id} className="group">
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-secondary text-secondary-foreground ring-1 ring-inset ring-border">
+                          <Wrench className="size-4" aria-hidden />
+                        </span>
+                        <span className="font-medium text-foreground">{eq.nome}</span>
+                      </div>
+                    </TableCell>
+
+                    <TableCell className="text-muted-foreground">{eq.marca.nome}</TableCell>
+
+                    <TableCell>
+                      <div className="flex items-center gap-2.5">
+                        <Initials name={eq.cliente.nome} className="size-7" />
+                        <span className="whitespace-nowrap">{eq.cliente.nome}</span>
+                      </div>
+                    </TableCell>
+
+                    <TableCell className="text-right">
+                      <AcoesMenu
+                        rotulo={`${eq.nome} ${eq.marca.nome} de ${eq.cliente.nome}`}
+                        onEditar={() => abrir({ tipo: "editar", equipamento: eq })}
+                        onExcluir={() => abrir({ tipo: "excluir", equipamento: eq })}
+                      />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardFlush>
-        <CardFooter className="text-xs text-muted-foreground">
-          <strong className="text-foreground">{equipamentos.length}</strong>
-          <span className="-ml-1">equipamentos cadastrados</span>
-        </CardFooter>
+        {equipamentos && equipamentos.length > 0 && (
+          <CardFooter className="gap-1 text-xs text-muted-foreground">
+            <strong className="text-foreground">{equipamentos.length}</strong>
+            {equipamentos.length === 1 ? "equipamento cadastrado" : "equipamentos cadastrados"}
+          </CardFooter>
+        )}
       </Card>
+
+      <EquipamentoDialog
+        open={aberto && modal?.tipo !== "excluir"}
+        onOpenChange={setAberto}
+        equipamento={modal?.tipo === "editar" ? modal.equipamento : undefined}
+        onSalvo={aoSalvar}
+      />
+
+      <ExcluirDialog
+        open={aberto && modal?.tipo === "excluir"}
+        onOpenChange={setAberto}
+        titulo="Excluir equipamento"
+        nome={
+          modal?.tipo === "excluir"
+            ? `${modal.equipamento.nome} (${modal.equipamento.marca.nome}) de ${modal.equipamento.cliente.nome}`
+            : undefined
+        }
+        mensagemConflito="Este equipamento já aparece em ordens de serviço e não pode ser excluído."
+        excluir={(token) =>
+          modal?.tipo === "excluir"
+            ? excluirEquipamento(token, modal.equipamento.id)
+            : Promise.resolve()
+        }
+        onExcluido={() => {
+          if (modal?.tipo !== "excluir") return
+          const { id } = modal.equipamento
+          setEquipamentos((atuais) => atuais?.filter((e) => e.id !== id) ?? null)
+        }}
+      />
     </>
   )
 }

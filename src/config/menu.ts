@@ -29,8 +29,8 @@ export const menuGroups: MenuGroup[] = [
     items: [
       {
         path: "/dashboard",
-        label: "Painel Resumo",
-        description: "Visão geral da oficina em tempo real.",
+        label: "Dashboard",
+        description: "Indicadores de faturamento e da operação da oficina.",
         icon: LayoutDashboard,
       },
       {
@@ -67,7 +67,7 @@ export const menuGroups: MenuGroup[] = [
       },
       {
         path: "/servicos",
-        label: "Serviços Base",
+        label: "Serviços",
         description: "Tabela de preços padronizados para agilizar orçamentos.",
         icon: Tags,
       },

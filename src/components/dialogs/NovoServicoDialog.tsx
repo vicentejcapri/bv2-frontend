@@ -96,7 +96,7 @@ export function NovoServicoDialog({
       <DialogContent>
         <DialogForm onSubmit={handleSubmit} noValidate>
           <DialogHeader>
-            <DialogTitle>Novo serviço base</DialogTitle>
+            <DialogTitle>Novo serviço</DialogTitle>
             <DialogDescription>
               Valor de referência para agilizar orçamentos — pode ser ajustado
               em cada ordem de serviço.
@@ -134,7 +134,7 @@ export function NovoServicoDialog({
 
             <Field
               id="servico-valor"
-              label="Valor base"
+              label="Valor"
               required
               error={erros.valorBase}
             >

@@ -1,164 +1,125 @@
 import { useEffect, useState } from "react"
-import { useNavigate } from "react-router-dom"
-import { ArrowRight, CheckCircle2, Eye, EyeOff } from "lucide-react"
+import type { FormEvent } from "react"
+import { Link, useLocation, useNavigate } from "react-router-dom"
+import type { Location } from "react-router-dom"
+import { Loader2 } from "lucide-react"
 
+import { AuthAlert, AuthShell } from "@/components/layout/AuthShell"
+import { Field } from "@/components/dialogs/Field"
+import { PasswordInput } from "@/components/PasswordInput"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { useAuth } from "@/hooks/useAuth"
-import m2Logo from "@/assets/m2_logo.jpeg"
+import { ApiError } from "@/lib/api"
+import { validarEmail } from "@/lib/auth-api"
+import { fieldProps } from "@/lib/form"
 
-const DESTAQUES = [
-  "Ordens de serviço com prazo e status em tempo real",
-  "Avisos automáticos ao cliente pelo WhatsApp",
-  "Tabela de preços base para orçar em segundos",
-]
+type Erros = { email?: string; senha?: string; geral?: string }
+
+type EstadoLogin = { from?: Location; aviso?: string; email?: string } | null
 
 export function LoginPage() {
   const { isLoggedIn, login } = useAuth()
   const navigate = useNavigate()
-  const [showPassword, setShowPassword] = useState(false)
+  const location = useLocation()
+  const estado = location.state as EstadoLogin
 
+  const [email, setEmail] = useState(estado?.email ?? "")
+  const [senha, setSenha] = useState("")
+  const [erros, setErros] = useState<Erros>({})
+  const [enviando, setEnviando] = useState(false)
+
+  // Único ponto de redirecionamento: cobre quem já chega logado e o login bem-sucedido.
   useEffect(() => {
-    if (isLoggedIn) navigate("/dashboard", { replace: true })
-  }, [isLoggedIn, navigate])
+    if (isLoggedIn) {
+      navigate(estado?.from?.pathname ?? "/dashboard", { replace: true })
+    }
+  }, [isLoggedIn, navigate, estado])
 
-  const handleSubmit = (event: React.FormEvent) => {
+  const handleSubmit = async (event: FormEvent) => {
     event.preventDefault()
-    login()
-    navigate("/dashboard", { replace: true })
+    if (enviando) return
+
+    const locais: Erros = {
+      email: validarEmail(email),
+      senha: senha ? undefined : "Informe sua senha.",
+    }
+    setErros(locais)
+    if (locais.email || locais.senha) return
+
+    setEnviando(true)
+    try {
+      await login(email.trim(), senha)
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 400 && error.erros) {
+        setErros({ email: error.erros.email, senha: error.erros.senha })
+      } else if (error instanceof ApiError && error.status === 401) {
+        setErros({ geral: "E-mail ou senha incorretos." })
+      } else {
+        setErros({
+          geral:
+            error instanceof ApiError
+              ? error.message
+              : "Algo deu errado. Tente novamente.",
+        })
+      }
+      setEnviando(false)
+    }
   }
 
   return (
-    <div className="grid min-h-screen lg:grid-cols-2">
-      {/* Coluna da marca — some no mobile para o formulário respirar */}
-      <div className="relative hidden flex-col justify-between overflow-hidden bg-sidebar p-12 lg:flex">
-        <div className="brand-grid absolute inset-0 opacity-40" />
-        <div
-          aria-hidden
-          className="absolute -left-24 -top-24 size-72 rounded-full bg-accent/20 blur-3xl"
-        />
+    <AuthShell titulo="Entrar no M2" descricao="Acesse o painel de ordens de serviço.">
+      <form onSubmit={handleSubmit} noValidate className="space-y-4">
+        {estado?.aviso && !erros.geral && (
+          <AuthAlert tom="sucesso">{estado.aviso}</AuthAlert>
+        )}
 
-        <div className="relative flex items-center gap-3">
-          <img
-            src={m2Logo}
-            alt=""
-            className="size-11 rounded-xl object-cover ring-1 ring-sidebar-border"
+        <Field id="email" label="E-mail" error={erros.email}>
+          <Input
+            {...fieldProps("email", erros.email)}
+            type="email"
+            inputMode="email"
+            autoComplete="username"
+            autoFocus
+            placeholder="voce@empresa.com"
+            className="h-11"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
           />
-          <div>
-            <p className="font-heading text-base font-semibold text-white">
-              M2 Equipamentos
-            </p>
-            <p className="text-xs text-sidebar-muted">
-              Manutenção industrial e mecânica
-            </p>
-          </div>
+        </Field>
+
+        <Field id="senha" label="Senha" error={erros.senha}>
+          <PasswordInput
+            {...fieldProps("senha", erros.senha)}
+            autoComplete="current-password"
+            value={senha}
+            onChange={(event) => setSenha(event.target.value)}
+          />
+        </Field>
+
+        {erros.geral && <AuthAlert tom="erro">{erros.geral}</AuthAlert>}
+
+        <Button
+          type="submit"
+          size="lg"
+          className="h-11 w-full"
+          disabled={enviando}
+          aria-busy={enviando}
+        >
+          {enviando && <Loader2 className="animate-spin" aria-hidden />}
+          {enviando ? "Entrando…" : "Entrar"}
+        </Button>
+
+        <div className="text-center">
+          <Link
+            to="/esqueci-senha"
+            state={{ email }}
+            className="text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+          >
+            Esqueci minha senha
+          </Link>
         </div>
-
-        <div className="relative max-w-md space-y-6">
-          <h2 className="font-heading text-3xl font-semibold leading-tight tracking-tight text-white">
-            Sua oficina inteira em{" "}
-            <span className="text-accent">uma única tela.</span>
-          </h2>
-          <ul className="space-y-3">
-            {DESTAQUES.map((item) => (
-              <li
-                key={item}
-                className="flex items-start gap-3 text-sm text-sidebar-foreground"
-              >
-                <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-accent" />
-                {item}
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <p className="relative text-xs text-sidebar-muted">
-          © {new Date().getFullYear()} M2 Equipamentos · Gestão de Ordens de
-          Serviço
-        </p>
-      </div>
-
-      {/* Coluna do formulário */}
-      <div className="flex items-center justify-center bg-background px-5 py-12">
-        <div className="w-full max-w-sm animate-fade-up">
-          {/* Marca compacta, só no mobile */}
-          <div className="mb-8 flex flex-col items-center gap-3 lg:hidden">
-            <img
-              src={m2Logo}
-              alt="M2 Equipamentos"
-              className="size-20 rounded-2xl object-cover shadow-card ring-1 ring-border"
-            />
-            <p className="font-heading text-lg font-semibold">M2 Equipamentos</p>
-          </div>
-
-          <div className="mb-8 space-y-1.5">
-            <h1 className="font-heading text-2xl font-semibold tracking-tight">
-              Bem-vindo de volta
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              Entre com suas credenciais para acessar o painel.
-            </p>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="space-y-2">
-              <Label htmlFor="usuario">Usuário</Label>
-              <Input
-                id="usuario"
-                type="text"
-                autoComplete="username"
-                placeholder="Digite seu usuário"
-                className="h-11"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="senha">Senha</Label>
-                <a
-                  href="#"
-                  className="text-xs font-medium text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground"
-                >
-                  Esqueceu a senha?
-                </a>
-              </div>
-              <div className="relative">
-                <Input
-                  id="senha"
-                  type={showPassword ? "text" : "password"}
-                  autoComplete="current-password"
-                  placeholder="••••••••"
-                  className="h-11 pr-11"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((visible) => !visible)}
-                  className="absolute right-1 top-1/2 -translate-y-1/2 rounded-md p-2 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40"
-                >
-                  {showPassword ? (
-                    <EyeOff className="size-4" />
-                  ) : (
-                    <Eye className="size-4" />
-                  )}
-                  <span className="sr-only">
-                    {showPassword ? "Ocultar senha" : "Mostrar senha"}
-                  </span>
-                </button>
-              </div>
-            </div>
-
-            <Button type="submit" size="lg" className="w-full">
-              Entrar
-              <ArrowRight />
-            </Button>
-          </form>
-
-          <p className="mt-8 text-center text-xs text-muted-foreground lg:hidden">
-            © {new Date().getFullYear()} M2 Equipamentos
-          </p>
-        </div>
-      </div>
-    </div>
+      </form>
+    </AuthShell>
   )
 }

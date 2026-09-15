@@ -1,9 +1,13 @@
 import { useState } from "react"
-import { ChevronRight } from "lucide-react"
+import type { FormEvent, ReactNode } from "react"
+import { useNavigate } from "react-router-dom"
+import { ChevronRight, Loader2 } from "lucide-react"
 
+import { AuthAlert } from "@/components/layout/AuthShell"
+import { Field } from "@/components/dialogs/Field"
+import { PasswordInput } from "@/components/PasswordInput"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import {
   Dialog,
   DialogBody,
@@ -20,21 +24,38 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { useAuth } from "@/hooks/useAuth"
+import { ApiError } from "@/lib/api"
+import { validarEmail } from "@/lib/auth-api"
+import { initialsOf } from "@/lib/format"
+import { fieldProps } from "@/lib/form"
+import {
+  ROLE_LABEL,
+  alterarMinhaSenha,
+  atualizarMeuNome,
+  solicitarTrocaEmail,
+} from "@/lib/usuario-api"
+import type { Usuario } from "@/lib/usuario-api"
 import { cn } from "@/lib/utils"
 
-const USER = {
-  nome: "Proprietário M2",
-  email: "admin@m2equipamentos.com.br",
-  cargo: "Administrador",
-  iniciais: "M2",
-}
+type Aba = "dados" | "email" | "senha"
+
+const ABAS: { id: Aba; label: string }[] = [
+  { id: "dados", label: "Dados" },
+  { id: "email", label: "E-mail" },
+  { id: "senha", label: "Senha" },
+]
+
+type Erros = Record<string, string | undefined>
 
 export function ProfileDialog({ expanded }: { expanded: boolean }) {
+  const { usuario } = useAuth()
   const [open, setOpen] = useState(false)
 
   const trigger = (
     <button
       type="button"
+      disabled={!usuario}
       className={cn(
         "flex h-12 w-full items-center rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/40",
         expanded
@@ -42,18 +63,31 @@ export function ProfileDialog({ expanded }: { expanded: boolean }) {
           : "justify-center px-0 hover:bg-sidebar-accent"
       )}
     >
-      <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent text-xs font-bold text-accent-foreground">
-        {USER.iniciais}
-      </span>
+      {usuario ? (
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent text-xs font-bold text-accent-foreground">
+          {initialsOf(usuario.nome)}
+        </span>
+      ) : (
+        <span className="size-8 shrink-0 animate-pulse rounded-full bg-sidebar-accent" />
+      )}
       {expanded && (
         <>
           <span className="min-w-0 flex-1 text-left">
-            <span className="block truncate text-sm font-medium text-white">
-              {USER.nome}
-            </span>
-            <span className="block truncate text-xs text-sidebar-muted">
-              {USER.cargo}
-            </span>
+            {usuario ? (
+              <>
+                <span className="block truncate text-sm font-medium text-white">
+                  {usuario.nome}
+                </span>
+                <span className="block truncate text-xs text-sidebar-muted">
+                  {ROLE_LABEL[usuario.role]}
+                </span>
+              </>
+            ) : (
+              <span className="block space-y-1.5" aria-label="Carregando usuário">
+                <span className="block h-3 w-24 animate-pulse rounded bg-sidebar-accent" />
+                <span className="block h-2.5 w-16 animate-pulse rounded bg-sidebar-accent" />
+              </span>
+            )}
           </span>
           <ChevronRight className="size-4 shrink-0 text-sidebar-muted" />
         </>
@@ -75,51 +109,379 @@ export function ProfileDialog({ expanded }: { expanded: boolean }) {
       </DialogTrigger>
 
       <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Editar perfil</DialogTitle>
-          <DialogDescription>
-            Altere seus dados de acesso. As mudanças valem no próximo login.
-          </DialogDescription>
-        </DialogHeader>
-
-        <DialogBody className="space-y-4">
-          <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/40 p-3">
-            <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
-              {USER.iniciais}
-            </span>
-            <div className="min-w-0">
-              <p className="truncate text-sm font-medium">{USER.nome}</p>
-              <p className="truncate text-xs text-muted-foreground">
-                {USER.cargo}
-              </p>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="perfil-nome">Nome</Label>
-            <Input id="perfil-nome" defaultValue={USER.nome} />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="perfil-email">E-mail</Label>
-            <Input id="perfil-email" type="email" defaultValue={USER.email} />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="perfil-senha">Nova senha</Label>
-            <Input
-              id="perfil-senha"
-              type="password"
-              placeholder="Deixe em branco para manter a atual"
-            />
-          </div>
-        </DialogBody>
-
-        <DialogFooter>
-          <DialogClose asChild>
-            <Button variant="outline">Cancelar</Button>
-          </DialogClose>
-          <Button onClick={() => setOpen(false)}>Salvar alterações</Button>
-        </DialogFooter>
+        {/* O conteúdo desmonta ao fechar, então cada abertura começa limpa. */}
+        {usuario && <PerfilConteudo usuario={usuario} onFechar={() => setOpen(false)} />}
       </DialogContent>
     </Dialog>
+  )
+}
+
+function PerfilConteudo({
+  usuario,
+  onFechar,
+}: {
+  usuario: Usuario
+  onFechar: () => void
+}) {
+  const [aba, setAba] = useState<Aba>("dados")
+
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle>Meu perfil</DialogTitle>
+        <DialogDescription>
+          {aba === "dados" && "Seu nome aparece no painel e nas ações registradas."}
+          {aba === "email" && "O e-mail é o seu login. A troca só vale depois de confirmada."}
+          {aba === "senha" && "Ao trocar a senha você sai de todas as sessões."}
+        </DialogDescription>
+      </DialogHeader>
+
+      {/* Cabeçalho fixo; só o formulário da aba rola em telas baixas. */}
+      <DialogBody className="flex-none space-y-4 overflow-visible pb-4">
+        <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/40 p-3">
+          <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
+            {initialsOf(usuario.nome)}
+          </span>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-medium">{usuario.nome}</p>
+            <p className="truncate text-xs text-muted-foreground">
+              {usuario.email} · {ROLE_LABEL[usuario.role]}
+            </p>
+          </div>
+        </div>
+
+        <div
+          role="tablist"
+          aria-label="Seções do perfil"
+          className="grid grid-cols-3 gap-1 rounded-lg bg-muted p-1"
+        >
+          {ABAS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              role="tab"
+              id={`perfil-aba-${item.id}`}
+              aria-selected={aba === item.id}
+              aria-controls="perfil-painel"
+              onClick={() => setAba(item.id)}
+              className={cn(
+                "rounded-md px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40",
+                aba === item.id
+                  ? "bg-card text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      </DialogBody>
+
+      <div
+        id="perfil-painel"
+        role="tabpanel"
+        aria-labelledby={`perfil-aba-${aba}`}
+        className="flex min-h-0 flex-1 flex-col"
+      >
+        {aba === "dados" && <FormNome usuario={usuario} onFechar={onFechar} />}
+        {aba === "email" && <FormEmail usuario={usuario} />}
+        {aba === "senha" && <FormSenha />}
+      </div>
+    </>
+  )
+}
+
+/** Corpo + rodapé de cada aba, com o botão de envio no mesmo lugar. */
+function AbaForm({
+  onSubmit,
+  enviando,
+  rotulo,
+  children,
+}: {
+  onSubmit: (event: FormEvent) => void
+  enviando: boolean
+  rotulo: string
+  children: ReactNode
+}) {
+  return (
+    <form onSubmit={onSubmit} noValidate className="flex min-h-0 flex-1 flex-col">
+      <DialogBody className="space-y-4 pt-1">{children}</DialogBody>
+      <DialogFooter>
+        <DialogClose asChild>
+          <Button type="button" variant="outline">
+            Cancelar
+          </Button>
+        </DialogClose>
+        <Button type="submit" disabled={enviando} aria-busy={enviando}>
+          {enviando && <Loader2 className="animate-spin" aria-hidden />}
+          {rotulo}
+        </Button>
+      </DialogFooter>
+    </form>
+  )
+}
+
+/**
+ * Trata o erro comum às três abas: 401 derruba a sessão; 400 vira erro por campo;
+ * o resto (409, 422, rede) vira alerta geral com a mensagem do backend.
+ */
+function useTratarErro() {
+  const { logout } = useAuth()
+  return (error: unknown): Erros => {
+    if (error instanceof ApiError && error.status === 401) {
+      logout()
+      return {}
+    }
+    if (error instanceof ApiError && error.status === 400 && error.erros) {
+      return { ...error.erros }
+    }
+    return {
+      geral: error instanceof ApiError ? error.message : "Algo deu errado. Tente novamente.",
+    }
+  }
+}
+
+function FormNome({ usuario, onFechar }: { usuario: Usuario; onFechar: () => void }) {
+  const { token, setUsuario } = useAuth()
+  const tratarErro = useTratarErro()
+  const [nome, setNome] = useState(usuario.nome)
+  const [erros, setErros] = useState<Erros>({})
+  const [enviando, setEnviando] = useState(false)
+
+  const handleSubmit = async (event: FormEvent) => {
+    event.preventDefault()
+    if (enviando || !token) return
+
+    const limpo = nome.trim()
+    const local = !limpo
+      ? "Informe seu nome."
+      : limpo.length > 50
+        ? "O nome deve ter no máximo 50 caracteres."
+        : undefined
+    setErros({ nome: local })
+    if (local) return
+    if (limpo === usuario.nome) return onFechar()
+
+    setEnviando(true)
+    try {
+      setUsuario(await atualizarMeuNome(token, limpo))
+      onFechar()
+    } catch (error) {
+      setErros(tratarErro(error))
+      setEnviando(false)
+    }
+  }
+
+  return (
+    <AbaForm onSubmit={handleSubmit} enviando={enviando} rotulo="Salvar nome">
+      <Field id="perfil-nome" label="Nome" error={erros.nome}>
+        <Input
+          {...fieldProps("perfil-nome", erros.nome)}
+          autoComplete="name"
+          maxLength={50}
+          value={nome}
+          onChange={(event) => setNome(event.target.value)}
+        />
+      </Field>
+      {erros.geral && <AuthAlert tom="erro">{erros.geral}</AuthAlert>}
+    </AbaForm>
+  )
+}
+
+function FormEmail({ usuario }: { usuario: Usuario }) {
+  const { token } = useAuth()
+  const tratarErro = useTratarErro()
+  const [novoEmail, setNovoEmail] = useState("")
+  const [confirmacao, setConfirmacao] = useState("")
+  const [senhaAtual, setSenhaAtual] = useState("")
+  const [erros, setErros] = useState<Erros>({})
+  const [enviando, setEnviando] = useState(false)
+  const [enviadoPara, setEnviadoPara] = useState<string>()
+
+  const handleSubmit = async (event: FormEvent) => {
+    event.preventDefault()
+    if (enviando || !token) return
+
+    const email = novoEmail.trim()
+    const locais: Erros = {
+      novoEmail:
+        validarEmail(email) ??
+        (email.toLowerCase() === usuario.email.toLowerCase()
+          ? "O novo e-mail é igual ao atual."
+          : undefined),
+      novoEmailConfirmacao:
+        confirmacao.trim() !== email ? "Os e-mails não conferem." : undefined,
+      senhaAtual: senhaAtual ? undefined : "Informe sua senha atual.",
+    }
+    setErros(locais)
+    if (Object.values(locais).some(Boolean)) return
+
+    setEnviando(true)
+    try {
+      await solicitarTrocaEmail(token, {
+        senhaAtual,
+        novoEmail: email,
+        novoEmailConfirmacao: confirmacao.trim(),
+      })
+      setEnviadoPara(email)
+      setNovoEmail("")
+      setConfirmacao("")
+      setSenhaAtual("")
+    } catch (error) {
+      setErros(tratarErro(error))
+    } finally {
+      setEnviando(false)
+    }
+  }
+
+  if (enviadoPara) {
+    return (
+      <>
+        <DialogBody className="space-y-3 pt-0">
+          <AuthAlert tom="sucesso">
+            Enviamos um link para <strong className="font-medium">{enviadoPara}</strong>.
+            Abra-o em até 30 minutos para concluir a troca.
+          </AuthAlert>
+          <p className="text-sm text-muted-foreground">
+            Até lá, continue entrando com {usuario.email}. Depois da confirmação
+            você precisará entrar de novo com o e-mail novo.
+          </p>
+        </DialogBody>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button type="button">Entendi</Button>
+          </DialogClose>
+        </DialogFooter>
+      </>
+    )
+  }
+
+  return (
+    <AbaForm onSubmit={handleSubmit} enviando={enviando} rotulo="Enviar confirmação">
+      <Field id="perfil-novo-email" label="Novo e-mail" error={erros.novoEmail}>
+        <Input
+          {...fieldProps("perfil-novo-email", erros.novoEmail)}
+          type="email"
+          inputMode="email"
+          autoComplete="email"
+          value={novoEmail}
+          onChange={(event) => setNovoEmail(event.target.value)}
+        />
+      </Field>
+      <Field
+        id="perfil-novo-email-confirmacao"
+        label="Confirme o novo e-mail"
+        error={erros.novoEmailConfirmacao}
+      >
+        <Input
+          {...fieldProps("perfil-novo-email-confirmacao", erros.novoEmailConfirmacao)}
+          type="email"
+          inputMode="email"
+          autoComplete="off"
+          value={confirmacao}
+          onChange={(event) => setConfirmacao(event.target.value)}
+        />
+      </Field>
+      <Field id="perfil-email-senha" label="Senha atual" error={erros.senhaAtual}>
+        <PasswordInput
+          {...fieldProps("perfil-email-senha", erros.senhaAtual)}
+          autoComplete="current-password"
+          value={senhaAtual}
+          onChange={(event) => setSenhaAtual(event.target.value)}
+        />
+      </Field>
+      {erros.geral && <AuthAlert tom="erro">{erros.geral}</AuthAlert>}
+    </AbaForm>
+  )
+}
+
+function FormSenha() {
+  const { token, logout } = useAuth()
+  const navigate = useNavigate()
+  const tratarErro = useTratarErro()
+  const [senhaAtual, setSenhaAtual] = useState("")
+  const [senhaNova, setSenhaNova] = useState("")
+  const [confirmacao, setConfirmacao] = useState("")
+  const [erros, setErros] = useState<Erros>({})
+  const [enviando, setEnviando] = useState(false)
+
+  const handleSubmit = async (event: FormEvent) => {
+    event.preventDefault()
+    if (enviando || !token) return
+
+    // Mesmas regras do AlteracaoSenhaRequest.
+    const locais: Erros = {
+      senhaAtual: senhaAtual ? undefined : "Informe sua senha atual.",
+      senhaNova:
+        senhaNova.length < 8 || senhaNova.length > 72
+          ? "A senha deve ter entre 8 e 72 caracteres."
+          : senhaNova === senhaAtual
+            ? "A nova senha precisa ser diferente da atual."
+            : undefined,
+      senhaNovaConfirmacao:
+        confirmacao !== senhaNova ? "As senhas não conferem." : undefined,
+    }
+    setErros(locais)
+    if (Object.values(locais).some(Boolean)) return
+
+    setEnviando(true)
+    try {
+      await alterarMinhaSenha(token, {
+        senhaAtual,
+        senhaNova,
+        senhaNovaConfirmacao: confirmacao,
+      })
+      // O backend invalida o token atual: sai e volta ao login com o aviso.
+      logout()
+      navigate("/login", {
+        replace: true,
+        state: { aviso: "Senha alterada. Entre com a nova senha." },
+      })
+    } catch (error) {
+      setErros(tratarErro(error))
+      setEnviando(false)
+    }
+  }
+
+  return (
+    <AbaForm onSubmit={handleSubmit} enviando={enviando} rotulo="Alterar senha">
+      <Field id="perfil-senha-atual" label="Senha atual" error={erros.senhaAtual}>
+        <PasswordInput
+          {...fieldProps("perfil-senha-atual", erros.senhaAtual)}
+          autoComplete="current-password"
+          value={senhaAtual}
+          onChange={(event) => setSenhaAtual(event.target.value)}
+        />
+      </Field>
+      <Field
+        id="perfil-senha-nova"
+        label="Nova senha"
+        hint="Mínimo de 8 caracteres."
+        error={erros.senhaNova}
+      >
+        <PasswordInput
+          {...fieldProps("perfil-senha-nova", erros.senhaNova)}
+          aria-describedby={
+            erros.senhaNova ? "perfil-senha-nova-error" : "perfil-senha-nova-hint"
+          }
+          autoComplete="new-password"
+          value={senhaNova}
+          onChange={(event) => setSenhaNova(event.target.value)}
+        />
+      </Field>
+      <Field
+        id="perfil-senha-confirmacao"
+        label="Confirme a nova senha"
+        error={erros.senhaNovaConfirmacao}
+      >
+        <PasswordInput
+          {...fieldProps("perfil-senha-confirmacao", erros.senhaNovaConfirmacao)}
+          autoComplete="new-password"
+          value={confirmacao}
+          onChange={(event) => setConfirmacao(event.target.value)}
+        />
+      </Field>
+      {erros.geral && <AuthAlert tom="erro">{erros.geral}</AuthAlert>}
+    </AbaForm>
   )
 }
