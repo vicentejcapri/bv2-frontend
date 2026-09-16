@@ -28,6 +28,17 @@ export function LoginPage() {
   const [senha, setSenha] = useState("")
   const [erros, setErros] = useState<Erros>({})
   const [enviando, setEnviando] = useState(false)
+  const [aviso] = useState(estado?.aviso)
+
+  // O state da navegação sobrevive ao F5: sem limpar, "Senha redefinida" voltaria a cada
+  // refresh. O aviso já foi guardado acima; só ele sai do histórico — from e email ficam.
+  useEffect(() => {
+    if (!estado?.aviso) return
+    navigate(location.pathname + location.search, {
+      replace: true,
+      state: { ...estado, aviso: undefined },
+    })
+  }, [estado, location.pathname, location.search, navigate])
 
   // Único ponto de redirecionamento: cobre quem já chega logado e o login bem-sucedido.
   useEffect(() => {
@@ -70,8 +81,8 @@ export function LoginPage() {
   return (
     <AuthShell titulo="Entrar no M2" descricao="Acesse o painel de ordens de serviço.">
       <form onSubmit={handleSubmit} noValidate className="space-y-4">
-        {estado?.aviso && !erros.geral && (
-          <AuthAlert tom="sucesso">{estado.aviso}</AuthAlert>
+        {aviso && !erros.geral && (
+          <AuthAlert tom="sucesso">{aviso}</AuthAlert>
         )}
 
         <Field id="email" label="E-mail" error={erros.email}>

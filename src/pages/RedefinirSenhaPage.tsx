@@ -9,6 +9,7 @@ import { PasswordInput } from "@/components/PasswordInput"
 import { Button } from "@/components/ui/button"
 import { ApiError } from "@/lib/api"
 import { redefinirSenha } from "@/lib/auth-api"
+import { avisarCredenciaisAlteradas } from "@/lib/credenciais-canal"
 import { fieldProps } from "@/lib/form"
 
 type Erros = { senhaNova?: string; senhaNovaConfirmacao?: string; geral?: string }
@@ -63,12 +64,16 @@ export function RedefinirSenhaPage() {
     setEnviando(true)
     try {
       await redefinirSenha(token, senhaNova, confirmacao)
+      // O link costuma abrir numa aba nova; a aba que estava logada nesta conta sai também.
+      avisarCredenciaisAlteradas()
       navigate("/login", {
         replace: true,
         state: { aviso: "Senha redefinida. Entre com a nova senha." },
       })
     } catch (error) {
-      if (error instanceof ApiError && error.status === 400 && error.erros) {
+      // 400 = Bean Validation; 422 com erros = regra presa a um campo (nova senha
+      // igual à atual). O 422 de link inválido não traz erros e cai no alerta geral.
+      if (error instanceof ApiError && (error.status === 400 || error.status === 422) && error.erros) {
         setErros({
           senhaNova: error.erros.senhaNova,
           senhaNovaConfirmacao: error.erros.senhaNovaConfirmacao,
