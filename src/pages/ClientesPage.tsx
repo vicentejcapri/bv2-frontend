@@ -135,7 +135,7 @@ export function ClientesPage() {
         title="Clientes"
         description="Gerencie a carteira de clientes da oficina."
         actions={
-          <Button onClick={() => abrir({ tipo: "novo" })}>
+          <Button variant="accent" onClick={() => abrir({ tipo: "novo" })}>
             <Plus />
             Novo cliente
           </Button>
@@ -184,7 +184,7 @@ export function ClientesPage() {
                 title="Nenhum cliente cadastrado"
                 description="Cadastre o primeiro cliente para abrir ordens de serviço."
                 action={
-                  <Button onClick={() => abrir({ tipo: "novo" })}>
+                  <Button variant="accent" onClick={() => abrir({ tipo: "novo" })}>
                     <Plus />
                     Novo cliente
                   </Button>

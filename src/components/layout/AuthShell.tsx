@@ -3,7 +3,7 @@ import { CheckCircle2, TriangleAlert } from "lucide-react"
 
 import { Card, CardContent } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
-import m2Logo from "@/assets/m2_logo.jpeg"
+import bv2Logo from "@/assets/bv2_logo.jpeg"
 
 /**
  * Moldura das telas públicas (login e recuperação de senha): logo, título e um
@@ -23,8 +23,8 @@ export function AuthShell({
       <div className="w-full max-w-sm motion-safe:animate-fade-up">
         <div className="mb-6 flex flex-col items-center gap-4 text-center">
           <img
-            src={m2Logo}
-            alt="M2 Equipamentos"
+            src={bv2Logo}
+            alt="BV2 Software"
             className="size-12 rounded-xl object-cover ring-1 ring-border"
           />
           <div className="space-y-1">

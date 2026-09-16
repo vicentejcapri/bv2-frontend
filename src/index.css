@@ -5,8 +5,11 @@
 @tailwind utilities;
 
 /* ==========================================================================
-   TOKENS DE DESIGN — M2 Equipamentos
-   Identidade: grafite (zinc-950) + lime (#a3e635) como acento de ação.
+   TOKENS DE DESIGN — BV2 Software
+   Identidade: grafite (#36393E) para superfícies e ações principais, cobre
+   (#CB8665) como acento de ação e cinza (#908F8C) na base dos neutros.
+   Bordas, fundos e textos secundários usam tons derivados desses três para
+   manter o contraste de leitura.
    Formato HSL "H S% L%" (sem wrapper) porque o tailwind.config.js aplica
    hsl(var(--token) / <alpha-value>) — é isso que habilita bg-primary/80.
    ========================================================================== */
@@ -14,29 +17,30 @@
 @layer base {
   :root {
     /* Superfícies */
-    --background: 240 5% 96%;          /* canvas do app  */
-    --foreground: 240 10% 4%;
+    --background: 45 5% 96%;           /* canvas do app                  */
+    --foreground: 218 10% 12%;
     --card: 0 0% 100%;
-    --card-foreground: 240 10% 4%;
+    --card-foreground: 218 10% 12%;
     --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 4%;
+    --popover-foreground: 218 10% 12%;
 
     /* Marca */
-    --primary: 240 10% 4%;             /* grafite: botões e ações sólidas */
-    --primary-foreground: 82 78% 55%;  /* lime sobre grafite              */
-    --accent: 82 78% 55%;              /* #a3e635                         */
-    --accent-foreground: 240 10% 4%;
+    --primary: 218 7% 23%;             /* #36393E: botões principais      */
+    --primary-foreground: 0 0% 100%;
+    --accent: 19 50% 60%;              /* #CB8665: ações, ativos, ícones  */
+    --accent-foreground: 218 10% 12%;  /* branco no cobre não tem contraste */
+    --accent-strong: 19 45% 40%;       /* cobre escuro: links sobre claro */
 
-    /* Neutros de apoio */
-    --secondary: 240 5% 96%;
-    --secondary-foreground: 240 6% 10%;
-    --muted: 240 5% 96%;
-    --muted-foreground: 240 4% 46%;
+    /* Neutros de apoio (derivados de #908F8C) */
+    --secondary: 45 5% 93%;
+    --secondary-foreground: 218 10% 12%;
+    --muted: 45 5% 93%;
+    --muted-foreground: 45 2% 42%;
 
     /* Traços e foco */
-    --border: 240 6% 90%;
-    --input: 240 6% 90%;
-    --ring: 82 78% 55%;                /* foco lime, como no login       */
+    --border: 45 3% 84%;
+    --input: 45 3% 84%;
+    --ring: 19 50% 60%;                /* foco cobre                     */
 
     /* Estados */
     --success: 142 71% 45%;
@@ -59,12 +63,12 @@
     --destructive-soft: 0 93% 96%;
     --destructive-soft-foreground: 0 74% 38%;
 
-    /* Barra lateral escura */
-    --sidebar: 240 10% 4%;
-    --sidebar-foreground: 240 5% 84%;
-    --sidebar-muted: 240 5% 55%;
-    --sidebar-accent: 240 4% 13%;
-    --sidebar-border: 240 5% 18%;
+    /* Barra lateral grafite */
+    --sidebar: 218 7% 23%;
+    --sidebar-foreground: 45 5% 90%;
+    --sidebar-muted: 45 3% 70%;
+    --sidebar-accent: 218 7% 30%;
+    --sidebar-border: 218 6% 33%;
 
     --radius: 0.625rem;
 
@@ -82,26 +86,27 @@
     --chart-3: #9085e9;
     --chart-4: #d95926;
 
-    --background: 240 10% 4%;
-    --foreground: 0 0% 98%;
-    --card: 240 6% 8%;
-    --card-foreground: 0 0% 98%;
-    --popover: 240 6% 8%;
-    --popover-foreground: 0 0% 98%;
+    --background: 218 8% 12%;
+    --foreground: 45 5% 96%;
+    --card: 218 7% 17%;
+    --card-foreground: 45 5% 96%;
+    --popover: 218 7% 17%;
+    --popover-foreground: 45 5% 96%;
 
-    --primary: 82 78% 55%;
-    --primary-foreground: 240 10% 4%;
-    --accent: 82 78% 55%;
-    --accent-foreground: 240 10% 4%;
+    --primary: 19 50% 60%;
+    --primary-foreground: 218 10% 12%;
+    --accent: 19 50% 60%;
+    --accent-foreground: 218 10% 12%;
+    --accent-strong: 19 55% 70%;
 
-    --secondary: 240 4% 14%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 4% 14%;
-    --muted-foreground: 240 5% 60%;
+    --secondary: 218 6% 22%;
+    --secondary-foreground: 45 5% 96%;
+    --muted: 218 6% 22%;
+    --muted-foreground: 45 2% 65%;
 
-    --border: 240 5% 18%;
-    --input: 240 5% 20%;
-    --ring: 82 78% 55%;
+    --border: 218 6% 28%;
+    --input: 218 6% 30%;
+    --ring: 19 50% 60%;
 
     --success-soft: 142 60% 14%;
     --success-soft-foreground: 141 79% 78%;
@@ -112,11 +117,11 @@
     --destructive-soft: 0 60% 16%;
     --destructive-soft-foreground: 0 93% 85%;
 
-    --sidebar: 240 10% 3%;
-    --sidebar-foreground: 240 5% 84%;
-    --sidebar-muted: 240 5% 55%;
-    --sidebar-accent: 240 4% 12%;
-    --sidebar-border: 240 5% 16%;
+    --sidebar: 218 8% 9%;
+    --sidebar-foreground: 45 5% 90%;
+    --sidebar-muted: 45 3% 65%;
+    --sidebar-accent: 218 7% 17%;
+    --sidebar-border: 218 6% 22%;
   }
 }
 

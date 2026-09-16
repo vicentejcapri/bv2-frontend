@@ -139,7 +139,7 @@ function SeletorPeriodo({
           className={cn(
             "rounded-md px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40",
             valor === item.id
-              ? "bg-primary text-primary-foreground"
+              ? "bg-accent text-accent-foreground"
               : "text-muted-foreground hover:text-foreground"
           )}
         >

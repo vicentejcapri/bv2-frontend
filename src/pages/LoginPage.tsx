@@ -79,7 +79,7 @@ export function LoginPage() {
   }
 
   return (
-    <AuthShell titulo="Entrar no M2" descricao="Acesse o painel de ordens de serviço.">
+    <AuthShell titulo="Entrar no BV2" descricao="Acesse o painel de ordens de serviço.">
       <form onSubmit={handleSubmit} noValidate className="space-y-4">
         {aviso && !erros.geral && (
           <AuthAlert tom="sucesso">{aviso}</AuthAlert>
@@ -125,7 +125,7 @@ export function LoginPage() {
           <Link
             to="/esqueci-senha"
             state={{ email }}
-            className="text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+            className="text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-accent-strong hover:underline"
           >
             Esqueci minha senha
           </Link>

@@ -122,7 +122,7 @@ export function OrdensServicoPage() {
         title="Ordens de Serviço"
         description="Gerencie e acompanhe os serviços em andamento."
         actions={
-          <Button onClick={() => setCriando(true)}>
+          <Button variant="accent" onClick={() => setCriando(true)}>
             <Plus />
             Nova ordem de serviço
           </Button>
@@ -173,7 +173,7 @@ export function OrdensServicoPage() {
               title="Nenhuma ordem de serviço"
               description="As ordens abertas para os clientes aparecem aqui."
               action={
-                <Button onClick={() => setCriando(true)}>
+                <Button variant="accent" onClick={() => setCriando(true)}>
                   <Plus />
                   Nova ordem de serviço
                 </Button>

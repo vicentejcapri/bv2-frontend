@@ -9,9 +9,10 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        /* Ação principal: grafite com texto lime — assinatura do produto */
+        /* Ação principal: grafite com texto branco (Salvar, Entrar, Confirmar) */
         default:
           "bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 active:bg-primary",
+        /* Ação de criação em cobre: CTAs "Novo…" no topo das páginas */
         accent:
           "bg-accent text-accent-foreground shadow-brand hover:bg-accent/90",
         outline:
@@ -22,7 +23,7 @@ const buttonVariants = cva(
           "hover:bg-muted hover:text-foreground data-[state=open]:bg-muted",
         destructive:
           "bg-destructive-soft text-destructive-soft-foreground hover:bg-destructive-soft/70 focus-visible:ring-destructive/30",
-        link: "text-foreground underline-offset-4 hover:underline",
+        link: "text-accent-strong underline-offset-4 hover:underline",
       },
       size: {
         xs: "h-7 rounded-md px-2 text-xs [&_svg:not([class*='size-'])]:size-3.5",
