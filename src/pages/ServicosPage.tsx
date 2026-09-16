@@ -1,8 +1,15 @@
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { Loader2, Plus } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardFlush, CardFooter } from "@/components/ui/card"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import {
   Table,
@@ -20,7 +27,7 @@ import { ServicoDialog } from "@/components/dialogs/ServicoDialog"
 import { useAuth } from "@/hooks/useAuth"
 import { useFeedback } from "@/hooks/useFeedback"
 import { ApiError } from "@/lib/api"
-import { formatBRL } from "@/lib/format"
+import { formatBRL, normalizar } from "@/lib/format"
 import {
   alterarSituacaoServico,
   excluirServico,
@@ -43,6 +50,8 @@ export function ServicosPage() {
   // O modal fica guardado depois de fechar para o conteúdo não mudar na animação de saída.
   const [modal, setModal] = useState<Modal | null>(null)
   const [aberto, setAberto] = useState(false)
+  const [busca, setBusca] = useState("")
+  const [filtroSituacao, setFiltroSituacao] = useState("TODOS")
 
   const abrir = (proximo: Modal) => {
     setModal(proximo)
@@ -107,6 +116,19 @@ export function ServicosPage() {
 
   const ativos = servicos?.filter((s) => s.ativo).length ?? 0
 
+  const visiveis = useMemo(() => {
+    const termo = normalizar(busca.trim())
+    return (servicos ?? []).filter((servico) => {
+      if (filtroSituacao === "ATIVOS" && !servico.ativo) return false
+      if (filtroSituacao === "INATIVOS" && servico.ativo) return false
+      if (!termo) return true
+      return (
+        normalizar(servico.nome).includes(termo) ||
+        normalizar(servico.descricao ?? "").includes(termo)
+      )
+    })
+  }, [servicos, busca, filtroSituacao])
+
   const botaoNovo = (
     <Button onClick={() => abrir({ tipo: "novo" })}>
       <Plus />
@@ -123,7 +145,22 @@ export function ServicosPage() {
       />
 
       <Card className="overflow-hidden">
-        <DataToolbar placeholder="Buscar serviço…" />
+        <DataToolbar
+          placeholder="Buscar por nome ou descrição…"
+          busca={busca}
+          onBuscaChange={setBusca}
+        >
+          <Select value={filtroSituacao} onValueChange={setFiltroSituacao}>
+            <SelectTrigger className="w-40" aria-label="Filtrar por situação">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="TODOS">Todos</SelectItem>
+              <SelectItem value="ATIVOS">Só ativos</SelectItem>
+              <SelectItem value="INATIVOS">Só inativos</SelectItem>
+            </SelectContent>
+          </Select>
+        </DataToolbar>
         <CardFlush className="border-t-0">
           {erro && !servicos ? (
             <EmptyState
@@ -143,12 +180,19 @@ export function ServicosPage() {
               <Loader2 className="size-4 animate-spin" aria-hidden />
               Carregando serviços…
             </div>
-          ) : servicos.length === 0 ? (
-            <EmptyState
-              title="Nenhum serviço cadastrado"
-              description="Cadastre os serviços da oficina para montar os orçamentos das ordens de serviço."
-              action={botaoNovo}
-            />
+          ) : visiveis.length === 0 ? (
+            servicos.length === 0 ? (
+              <EmptyState
+                title="Nenhum serviço cadastrado"
+                description="Cadastre os serviços da oficina para montar os orçamentos das ordens de serviço."
+                action={botaoNovo}
+              />
+            ) : (
+              <EmptyState
+                title="Nenhum serviço encontrado"
+                description="Nenhum serviço corresponde à busca ou ao filtro."
+              />
+            )
           ) : (
             <Table>
               <TableHeader>
@@ -161,7 +205,7 @@ export function ServicosPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {servicos.map((srv) => (
+                {visiveis.map((srv) => (
                   <TableRow key={srv.id} className="group">
                     <TableCell
                       className={
@@ -204,8 +248,9 @@ export function ServicosPage() {
         </CardFlush>
         {servicos && servicos.length > 0 && (
           <CardFooter className="gap-1 text-xs text-muted-foreground">
-            <strong className="text-foreground">{servicos.length}</strong>
-            {servicos.length === 1 ? "serviço cadastrado" : "serviços cadastrados"}
+            <strong className="text-foreground">{visiveis.length}</strong>
+            de {servicos.length}
+            {servicos.length === 1 ? "serviço" : "serviços"}
             <span aria-hidden>·</span>
             <strong className="text-foreground">{ativos}</strong>
             {ativos === 1 ? "ativo" : "ativos"}

@@ -38,6 +38,9 @@ export function maskTelefone(bruto: string): string {
     return `+${digitos.slice(0, 2)} ${maskTelefone(digitos.slice(2))}`
   }
   const d = digitos
+  // Sem nenhum dígito o campo fica vazio, e não com um "(" solto: assim o
+  // placeholder aparece e telefone em branco na lista não vira parêntese.
+  if (!d) return ""
   if (d.length <= 2) return d.replace(/^(\d{0,2})/, "($1")
   if (d.length <= 6) return d.replace(/^(\d{2})(\d{0,4})/, "($1) $2")
   if (d.length <= 10) return d.replace(/^(\d{2})(\d{4})(\d{0,4})/, "($1) $2-$3")
@@ -76,4 +79,12 @@ export function mesPorExtenso(mes: string) {
     month: "long",
     year: "numeric",
   })
+}
+
+/** Normaliza para busca: sem acento, minúsculo. */
+export function normalizar(texto: string) {
+  return texto
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
 }

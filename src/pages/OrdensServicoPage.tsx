@@ -1,42 +1,314 @@
+import { useEffect, useMemo, useState } from "react"
+import { CheckCircle2, Info, Loader2, Plus, X } from "lucide-react"
+
 import { Button } from "@/components/ui/button"
 import { Card, CardFlush, CardFooter } from "@/components/ui/card"
-import { DataToolbar } from "@/components/DataToolbar"
-import { OSTable } from "@/components/OSTable"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import { DataToolbar, EmptyState } from "@/components/DataToolbar"
+import { Initials } from "@/components/Initials"
 import { PageHeader } from "@/components/PageHeader"
+import { DetalhesOSDialog } from "@/components/dialogs/DetalhesOSDialog"
 import { NovaOSDialog } from "@/components/dialogs/NovaOSDialog"
-import { useDados } from "@/hooks/useDados"
+import { StatusOSSelect } from "@/components/StatusOSSelect"
+import { useAuth } from "@/hooks/useAuth"
+import { useFeedback } from "@/hooks/useFeedback"
+import { ApiError } from "@/lib/api"
+import { formatBRL, formatDataBR, normalizar } from "@/lib/format"
+import { numeroOS } from "@/lib/os"
+import { alterarStatusOrdem, listarOrdens } from "@/lib/os-api"
+import type { OrdemServico, StatusOs } from "@/lib/os-api"
+import { OS_LOOK } from "@/components/StatusBadge"
 
 export function OrdensServicoPage() {
-  const { ordens } = useDados()
+  const { token, logout } = useAuth()
+  const { falha } = useFeedback()
+  const [ordens, setOrdens] = useState<OrdemServico[] | null>(null)
+  const [erro, setErro] = useState<string | null>(null)
+  const [tentativa, setTentativa] = useState(0)
+  /** Id da OS com PATCH em voo — trava só aquele seletor. */
+  const [salvando, setSalvando] = useState<number | null>(null)
+  const [aviso, setAviso] = useState<string | null>(null)
+  // A OS fica guardada depois de fechar para o modal não esvaziar na animação de saída.
+  const [detalhe, setDetalhe] = useState<OrdemServico | null>(null)
+  const [detalheAberto, setDetalheAberto] = useState(false)
+
+  const [criando, setCriando] = useState(false)
+  const [busca, setBusca] = useState("")
+  const [filtroStatus, setFiltroStatus] = useState<string>("TODOS")
+
+  const verDetalhes = (ordem: OrdemServico) => {
+    setDetalhe(ordem)
+    setDetalheAberto(true)
+  }
+
+  useEffect(() => {
+    if (!token) return
+    let cancelado = false
+
+    listarOrdens(token)
+      .then((pagina) => {
+        if (cancelado) return
+        setOrdens(pagina.conteudo)
+        setErro(null)
+      })
+      .catch((error) => {
+        if (cancelado) return
+        if (error instanceof ApiError && error.status === 401) return logout()
+        setErro(
+          error instanceof ApiError
+            ? error.message
+            : "Não foi possível carregar as ordens de serviço."
+        )
+      })
+
+    return () => {
+      cancelado = true
+    }
+  }, [token, logout, tentativa])
+
+  const alterarStatus = async (
+    ordem: OrdemServico,
+    destino: Exclude<StatusOs, "EM_ANDAMENTO">
+  ) => {
+    if (!token || salvando) return
+    setSalvando(ordem.id)
+    try {
+      const atualizada = await alterarStatusOrdem(token, ordem.id, destino)
+      setOrdens((atuais) =>
+        atuais?.map((o) => (o.id === atualizada.id ? atualizada : o)) ?? null
+      )
+      setAviso(`${numeroOS(ordem.id)} · ${OS_LOOK[destino].label}`)
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) return logout()
+      falha({
+        // 422 = transição barrada pela máquina de estados do backend.
+        titulo: "Não foi possível alterar o status",
+        descricao:
+          error instanceof ApiError
+            ? error.message
+            : "Algo deu errado. Tente novamente.",
+      })
+    } finally {
+      setSalvando(null)
+    }
+  }
+
+  const visiveis = useMemo(() => {
+    const termo = normalizar(busca.trim())
+    return (ordens ?? []).filter((os) => {
+      if (filtroStatus !== "TODOS" && os.status !== filtroStatus) return false
+      if (!termo) return true
+      return normalizar(os.cliente.nome).includes(termo) || String(os.id).includes(termo)
+    })
+  }, [ordens, busca, filtroStatus])
 
   return (
     <>
       <PageHeader
         title="Ordens de Serviço"
         description="Gerencie e acompanhe os serviços em andamento."
-        actions={<NovaOSDialog />}
+        actions={
+          <Button onClick={() => setCriando(true)}>
+            <Plus />
+            Nova ordem de serviço
+          </Button>
+        }
       />
 
       <Card className="overflow-hidden">
-        <DataToolbar placeholder="Buscar ordem de serviço, cliente ou equipamento…" />
+        <DataToolbar
+          placeholder="Buscar por número da ordem ou cliente…"
+          busca={busca}
+          onBuscaChange={setBusca}
+        >
+          <Select value={filtroStatus} onValueChange={setFiltroStatus}>
+            <SelectTrigger className="w-44" aria-label="Filtrar por status">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="TODOS">Todos os status</SelectItem>
+              {Object.entries(OS_LOOK).map(([valor, look]) => (
+                <SelectItem key={valor} value={valor}>
+                  {look.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </DataToolbar>
         <CardFlush className="border-t-0">
-          <OSTable ordens={ordens} />
+          {erro && !ordens ? (
+            <EmptyState
+              title="Não foi possível carregar as ordens de serviço"
+              description={erro}
+              action={
+                <Button variant="outline" onClick={() => setTentativa((n) => n + 1)}>
+                  Tentar novamente
+                </Button>
+              }
+            />
+          ) : !ordens ? (
+            <div
+              className="flex items-center justify-center gap-2 px-5 py-14 text-sm text-muted-foreground"
+              role="status"
+            >
+              <Loader2 className="size-4 animate-spin" aria-hidden />
+              Carregando ordens de serviço…
+            </div>
+          ) : ordens.length === 0 ? (
+            <EmptyState
+              title="Nenhuma ordem de serviço"
+              description="As ordens abertas para os clientes aparecem aqui."
+              action={
+                <Button onClick={() => setCriando(true)}>
+                  <Plus />
+                  Nova ordem de serviço
+                </Button>
+              }
+            />
+          ) : visiveis.length === 0 ? (
+            <EmptyState
+              title="Nenhuma ordem encontrada"
+              description="Nenhuma ordem de serviço corresponde à busca ou ao filtro."
+            />
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="w-[110px]">Número</TableHead>
+                  <TableHead>Cliente</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="hidden sm:table-cell">Entrada</TableHead>
+                  <TableHead className="text-right">Valor</TableHead>
+                  <TableHead className="w-12" />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {visiveis.map((os) => (
+                  <TableRow key={os.id} className="group">
+                    <TableCell className="font-mono text-[0.8125rem] font-medium text-muted-foreground">
+                      {numeroOS(os.id)}
+                    </TableCell>
+
+                    <TableCell>
+                      <div className="flex items-center gap-2.5">
+                        <Initials name={os.cliente.nome} className="size-7" />
+                        <span className="font-medium text-foreground">
+                          {os.cliente.nome}
+                        </span>
+                      </div>
+                    </TableCell>
+
+                    <TableCell>
+                      <StatusOSSelect
+                        status={os.status}
+                        rotulo={`${numeroOS(os.id)} de ${os.cliente.nome}`}
+                        salvando={salvando === os.id}
+                        onSelecionar={(destino) => alterarStatus(os, destino)}
+                      />
+                    </TableCell>
+
+                    <TableCell className="hidden whitespace-nowrap text-muted-foreground sm:table-cell">
+                      {formatDataBR(os.dataEntrada)}
+                    </TableCell>
+
+                    <TableCell className="whitespace-nowrap text-right font-medium">
+                      {formatBRL(os.valorTotal)}
+                    </TableCell>
+
+                    <TableCell className="text-right">
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        onClick={() => verDetalhes(os)}
+                        className="transition-opacity focus-visible:opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
+                      >
+                        <Info />
+                        <span className="sr-only">
+                          Ver detalhes de {numeroOS(os.id)}
+                        </span>
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardFlush>
-        <CardFooter className="justify-between text-xs text-muted-foreground">
-          <span>
-            Exibindo <strong className="text-foreground">{ordens.length}</strong>{" "}
-            de {ordens.length} ordens
-          </span>
-          <div className="flex gap-1.5">
-            <Button variant="outline" size="xs" disabled>
-              Anterior
-            </Button>
-            <Button variant="outline" size="xs" disabled>
-              Próxima
-            </Button>
-          </div>
-        </CardFooter>
+        {ordens && ordens.length > 0 && (
+          <CardFooter className="text-xs text-muted-foreground">
+            Exibindo <strong className="text-foreground">{visiveis.length}</strong>{" "}
+            de {ordens.length} {ordens.length === 1 ? "ordem" : "ordens"}
+          </CardFooter>
+        )}
       </Card>
+
+      <NovaOSDialog
+        open={criando}
+        onOpenChange={setCriando}
+        onCriada={(nova) => {
+          setOrdens((atuais) => [nova, ...(atuais ?? [])])
+          setAviso(`${numeroOS(nova.id)} · aberta`)
+        }}
+      />
+
+      <DetalhesOSDialog
+        open={detalheAberto}
+        onOpenChange={setDetalheAberto}
+        ordem={detalhe ?? undefined}
+      />
+
+      <AvisoStatus mensagem={aviso} onFechar={() => setAviso(null)} />
     </>
+  )
+}
+
+/** Confirmação discreta da troca de status, no canto inferior direito. */
+function AvisoStatus({
+  mensagem,
+  onFechar,
+}: {
+  mensagem: string | null
+  onFechar: () => void
+}) {
+  useEffect(() => {
+    if (!mensagem) return
+    const id = setTimeout(onFechar, 3500)
+    return () => clearTimeout(id)
+  }, [mensagem, onFechar])
+
+  if (!mensagem) return null
+
+  return (
+    <div
+      role="status"
+      className="fixed bottom-5 right-5 z-50 flex animate-fade-up items-center gap-2.5 rounded-lg bg-success-soft px-4 py-3 text-sm text-success-soft-foreground shadow-overlay"
+    >
+      <CheckCircle2 className="size-4 shrink-0" aria-hidden />
+      <span>
+        Status atualizado — <strong className="font-medium">{mensagem}</strong>
+      </span>
+      <button
+        type="button"
+        onClick={onFechar}
+        className="-mr-1 ml-1 rounded p-1 opacity-70 transition-opacity hover:opacity-100"
+      >
+        <X className="size-3.5" aria-hidden />
+        <span className="sr-only">Fechar aviso</span>
+      </button>
+    </div>
   )
 }

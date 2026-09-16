@@ -14,8 +14,6 @@ export type MenuItem = {
   /** Texto de apoio exibido no cabeçalho da página. */
   description: string
   icon: LucideIcon
-  /** Contador opcional exibido ao lado do item na barra lateral. */
-  badge?: number
 }
 
 export type MenuGroup = {
@@ -38,7 +36,6 @@ export const menuGroups: MenuGroup[] = [
         label: "Ordens de Serviço",
         description: "Gerencie e acompanhe os serviços em andamento.",
         icon: ClipboardList,
-        badge: 12,
       },
       {
         path: "/notificacoes",
@@ -46,7 +43,6 @@ export const menuGroups: MenuGroup[] = [
         description:
           "Envios automáticos via WhatsApp e mensagens personalizadas.",
         icon: MessageSquare,
-        badge: 1,
       },
     ],
   },

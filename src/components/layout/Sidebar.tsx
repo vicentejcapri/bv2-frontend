@@ -172,21 +172,6 @@ function NavLinkItem({
         )}
       />
       {expanded && <span className="flex-1 truncate">{item.label}</span>}
-      {expanded && item.badge ? (
-        <span
-          className={cn(
-            "rounded-full px-1.5 py-0.5 text-[0.6875rem] font-semibold tabular-nums",
-            isActive
-              ? "bg-accent text-accent-foreground"
-              : "bg-sidebar-accent text-sidebar-muted"
-          )}
-        >
-          {item.badge}
-        </span>
-      ) : null}
-      {!expanded && item.badge ? (
-        <span className="absolute right-1.5 top-1.5 size-1.5 rounded-full bg-accent" />
-      ) : null}
     </Link>
   )
 

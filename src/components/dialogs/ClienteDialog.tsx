@@ -128,7 +128,7 @@ function ClienteForm({
             value={nome}
             maxLength={50}
             onChange={(event) => setNome(event.target.value)}
-            placeholder="João Silva ou Oficina do Beto"
+            placeholder="Oficina do Beto"
             autoFocus
           />
         </Field>

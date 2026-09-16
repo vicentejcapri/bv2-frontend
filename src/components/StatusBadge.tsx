@@ -1,9 +1,9 @@
 import type { ComponentProps } from "react"
-import { CheckCircle2, Clock, PackageCheck, Send, TriangleAlert } from "lucide-react"
+import { Ban, CheckCircle2, Clock, PackageCheck, TriangleAlert } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
-import { cn } from "@/lib/utils"
-import type { Notificacao, OrdemServico } from "@/data/mocks"
+import type { StatusNotificacao } from "@/lib/notificacao-api"
+import type { StatusOs } from "@/lib/os-api"
 
 type BadgeVariant = ComponentProps<typeof Badge>["variant"]
 type Look = { label: string; variant: BadgeVariant; icon: typeof Clock }
@@ -13,29 +13,24 @@ type Look = { label: string; variant: BadgeVariant; icon: typeof Clock }
  * classe (`bg-green-100 text-green-700 ...`) — agora rótulo, cor e ícone
  * moram aqui e todas as telas ficam consistentes.
  */
-const OS_LOOK: Record<OrdemServico["status"], Look> = {
+const OS_LOOK: Record<StatusOs, Look> = {
   EM_ANDAMENTO: { label: "Em andamento", variant: "info", icon: Clock },
-  CONCLUIDO: { label: "Concluído", variant: "success", icon: CheckCircle2 },
+  CONCLUIDA: { label: "Concluído", variant: "success", icon: CheckCircle2 },
   ENTREGUE: { label: "Entregue", variant: "neutral", icon: PackageCheck },
+  CANCELADA: { label: "Cancelado", variant: "destructive", icon: Ban },
 }
 
-const NOTIF_LOOK: Record<Notificacao["status"], Look> = {
+const NOTIF_LOOK: Record<StatusNotificacao, Look> = {
   ENVIADO: { label: "Enviado", variant: "success", icon: CheckCircle2 },
   FALHOU: { label: "Falhou", variant: "destructive", icon: TriangleAlert },
   PENDENTE: { label: "Pendente", variant: "warning", icon: Clock },
-}
-
-const TIPO_LABEL: Record<Notificacao["tipo"], string> = {
-  PRAZO_INICIADO: "Prazo iniciado",
-  PRAZO_ENCERRADO: "Prazo encerrado",
-  PERSONALIZADO: "Personalizado",
 }
 
 export function OSStatusBadge({
   status,
   className,
 }: {
-  status: OrdemServico["status"]
+  status: StatusOs
   className?: string
 }) {
   const { label, variant, icon: Icon } = OS_LOOK[status]
@@ -51,7 +46,7 @@ export function NotificacaoStatusBadge({
   status,
   className,
 }: {
-  status: Notificacao["status"]
+  status: StatusNotificacao
   className?: string
 }) {
   const { label, variant, icon: Icon } = NOTIF_LOOK[status]
@@ -63,19 +58,4 @@ export function NotificacaoStatusBadge({
   )
 }
 
-export function TipoNotificacaoBadge({
-  tipo,
-  className,
-}: {
-  tipo: Notificacao["tipo"]
-  className?: string
-}) {
-  return (
-    <Badge variant="outline" className={cn("font-normal", className)}>
-      <Send />
-      {TIPO_LABEL[tipo]}
-    </Badge>
-  )
-}
-
-export { OS_LOOK, NOTIF_LOOK, TIPO_LABEL }
+export { OS_LOOK, NOTIF_LOOK }

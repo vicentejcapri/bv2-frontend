@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { Loader2, Plus, Wrench } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -19,6 +19,7 @@ import { EquipamentoDialog } from "@/components/dialogs/EquipamentoDialog"
 import { ExcluirDialog } from "@/components/dialogs/ExcluirDialog"
 import { useAuth } from "@/hooks/useAuth"
 import { ApiError } from "@/lib/api"
+import { normalizar } from "@/lib/format"
 import { excluirEquipamento, listarEquipamentos } from "@/lib/equipamento-api"
 import type { Equipamento } from "@/lib/equipamento-api"
 
@@ -36,6 +37,7 @@ export function EquipamentosPage() {
   // O modal fica guardado depois de fechar para o conteúdo não mudar na animação de saída.
   const [modal, setModal] = useState<Modal | null>(null)
   const [aberto, setAberto] = useState(false)
+  const [busca, setBusca] = useState("")
 
   const abrir = (proximo: Modal) => {
     setModal(proximo)
@@ -76,6 +78,17 @@ export function EquipamentosPage() {
     })
   }, [])
 
+  const visiveis = useMemo(() => {
+    const termo = normalizar(busca.trim())
+    if (!termo) return equipamentos ?? []
+    return (equipamentos ?? []).filter(
+      (eq) =>
+        normalizar(eq.nome).includes(termo) ||
+        normalizar(eq.marca.nome).includes(termo) ||
+        normalizar(eq.cliente.nome).includes(termo)
+    )
+  }, [equipamentos, busca])
+
   const botaoNovo = (
     <Button onClick={() => abrir({ tipo: "novo" })}>
       <Plus />
@@ -92,7 +105,11 @@ export function EquipamentosPage() {
       />
 
       <Card className="overflow-hidden">
-        <DataToolbar placeholder="Buscar por equipamento, marca ou dono…" />
+        <DataToolbar
+          placeholder="Buscar por equipamento, marca ou dono…"
+          busca={busca}
+          onBuscaChange={setBusca}
+        />
         <CardFlush className="border-t-0">
           {erro && !equipamentos ? (
             <EmptyState
@@ -112,12 +129,19 @@ export function EquipamentosPage() {
               <Loader2 className="size-4 animate-spin" aria-hidden />
               Carregando equipamentos…
             </div>
-          ) : equipamentos.length === 0 ? (
-            <EmptyState
-              title="Nenhum equipamento cadastrado"
-              description="Cadastre o equipamento de um cliente para usá-lo nas ordens de serviço."
-              action={botaoNovo}
-            />
+          ) : visiveis.length === 0 ? (
+            equipamentos.length === 0 ? (
+              <EmptyState
+                title="Nenhum equipamento cadastrado"
+                description="Cadastre o equipamento de um cliente para usá-lo nas ordens de serviço."
+                action={botaoNovo}
+              />
+            ) : (
+              <EmptyState
+                title="Nenhum equipamento encontrado"
+                description="Nenhum equipamento corresponde à busca."
+              />
+            )
           ) : (
             <Table>
               <TableHeader>
@@ -129,7 +153,7 @@ export function EquipamentosPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {equipamentos.map((eq) => (
+                {visiveis.map((eq) => (
                   <TableRow key={eq.id} className="group">
                     <TableCell>
                       <div className="flex items-center gap-3">
@@ -164,8 +188,9 @@ export function EquipamentosPage() {
         </CardFlush>
         {equipamentos && equipamentos.length > 0 && (
           <CardFooter className="gap-1 text-xs text-muted-foreground">
-            <strong className="text-foreground">{equipamentos.length}</strong>
-            {equipamentos.length === 1 ? "equipamento cadastrado" : "equipamentos cadastrados"}
+            <strong className="text-foreground">{visiveis.length}</strong>
+            de {equipamentos.length}
+            {equipamentos.length === 1 ? "equipamento" : "equipamentos"}
           </CardFooter>
         )}
       </Card>

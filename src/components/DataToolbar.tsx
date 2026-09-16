@@ -1,20 +1,25 @@
 import type { ReactNode } from "react"
-import { ListFilter, Search } from "lucide-react"
+import { Search, X } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 
 /**
- * Barra de busca/filtro usada no topo das listagens.
- * Visual apenas por enquanto — o estado real entra quando houver API.
+ * Barra de busca das listagens. O filtro é feito na própria página, sobre a
+ * lista já carregada — nenhuma das listagens é paginada na tela, então não vale
+ * uma ida ao servidor a cada tecla.
  */
 export function DataToolbar({
   placeholder,
+  busca,
+  onBuscaChange,
   children,
   className,
 }: {
   placeholder: string
+  busca: string
+  onBuscaChange: (valor: string) => void
+  /** Filtros extras da página (situação, status…). */
   children?: ReactNode
   className?: string
 }) {
@@ -27,15 +32,28 @@ export function DataToolbar({
     >
       <div className="relative flex-1 sm:max-w-sm">
         <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input placeholder={placeholder} className="pl-9" />
+        <Input
+          type="search"
+          placeholder={placeholder}
+          aria-label={placeholder}
+          value={busca}
+          onChange={(event) => onBuscaChange(event.target.value)}
+          className="pl-9 pr-9"
+        />
+        {busca && (
+          <button
+            type="button"
+            onClick={() => onBuscaChange("")}
+            className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <X className="size-3.5" aria-hidden />
+            <span className="sr-only">Limpar busca</span>
+          </button>
+        )}
       </div>
-      <div className="flex items-center gap-2 sm:ml-auto">
-        {children}
-        <Button variant="outline" size="sm">
-          <ListFilter />
-          Filtros
-        </Button>
-      </div>
+      {children && (
+        <div className="flex items-center gap-2 sm:ml-auto">{children}</div>
+      )}
     </div>
   )
 }
