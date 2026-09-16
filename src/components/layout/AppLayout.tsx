@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { Outlet, useLocation, useNavigate } from "react-router-dom"
-import { Bell, Menu, Search, X } from "lucide-react"
+import { Menu, Search, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -131,12 +131,6 @@ export function AppLayout() {
                 className="w-96 bg-background pl-9"
               />
             </div>
-
-            <Button variant="outline" size="icon-sm" className="relative">
-              <Bell />
-              <span className="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-accent ring-2 ring-card" />
-              <span className="sr-only">Notificações</span>
-            </Button>
           </header>
 
           {/* Conteúdo — key na rota reinicia a animação de entrada */}

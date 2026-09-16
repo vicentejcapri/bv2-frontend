@@ -1,8 +1,15 @@
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { Loader2, Phone, Plus } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardFlush, CardFooter } from "@/components/ui/card"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import {
   Table,
@@ -27,7 +34,7 @@ import {
   listarClientes,
 } from "@/lib/cliente-api"
 import type { Cliente } from "@/lib/cliente-api"
-import { maskTelefone } from "@/lib/format"
+import { maskTelefone, normalizar } from "@/lib/format"
 
 /** Diálogo aberto no momento: cadastro, edição ou confirmação de exclusão. */
 type Modal =
@@ -44,6 +51,8 @@ export function ClientesPage() {
   // O modal fica guardado depois de fechar para o conteúdo não mudar na animação de saída.
   const [modal, setModal] = useState<Modal | null>(null)
   const [aberto, setAberto] = useState(false)
+  const [busca, setBusca] = useState("")
+  const [filtroSituacao, setFiltroSituacao] = useState("TODOS")
 
   const abrir = (proximo: Modal) => {
     setModal(proximo)
@@ -106,6 +115,20 @@ export function ClientesPage() {
 
   const ativos = clientes?.filter((c) => c.ativo).length ?? 0
 
+  const visiveis = useMemo(() => {
+    const termo = normalizar(busca.trim())
+    const digitos = busca.replace(/\D/g, "")
+    return (clientes ?? []).filter((cliente) => {
+      if (filtroSituacao === "ATIVOS" && !cliente.ativo) return false
+      if (filtroSituacao === "INATIVOS" && cliente.ativo) return false
+      if (!termo) return true
+      return (
+        normalizar(cliente.nome).includes(termo) ||
+        (digitos.length > 0 && cliente.telefone.includes(digitos))
+      )
+    })
+  }, [clientes, busca, filtroSituacao])
+
   return (
     <>
       <PageHeader
@@ -120,7 +143,22 @@ export function ClientesPage() {
       />
 
       <Card className="overflow-hidden">
-        <DataToolbar placeholder="Buscar por nome ou telefone…" />
+        <DataToolbar
+          placeholder="Buscar por nome ou telefone…"
+          busca={busca}
+          onBuscaChange={setBusca}
+        >
+          <Select value={filtroSituacao} onValueChange={setFiltroSituacao}>
+            <SelectTrigger className="w-40" aria-label="Filtrar por situação">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="TODOS">Todos</SelectItem>
+              <SelectItem value="ATIVOS">Só ativos</SelectItem>
+              <SelectItem value="INATIVOS">Só inativos</SelectItem>
+            </SelectContent>
+          </Select>
+        </DataToolbar>
         <CardFlush className="border-t-0">
           {erro && !clientes ? (
             <EmptyState
@@ -140,17 +178,24 @@ export function ClientesPage() {
               <Loader2 className="size-4 animate-spin" aria-hidden />
               Carregando clientes…
             </div>
-          ) : clientes.length === 0 ? (
-            <EmptyState
-              title="Nenhum cliente cadastrado"
-              description="Cadastre o primeiro cliente para abrir ordens de serviço."
-              action={
-                <Button onClick={() => abrir({ tipo: "novo" })}>
-                  <Plus />
-                  Novo cliente
-                </Button>
-              }
-            />
+          ) : visiveis.length === 0 ? (
+            clientes.length === 0 ? (
+              <EmptyState
+                title="Nenhum cliente cadastrado"
+                description="Cadastre o primeiro cliente para abrir ordens de serviço."
+                action={
+                  <Button onClick={() => abrir({ tipo: "novo" })}>
+                    <Plus />
+                    Novo cliente
+                  </Button>
+                }
+              />
+            ) : (
+              <EmptyState
+                title="Nenhum cliente encontrado"
+                description="Nenhum cliente corresponde à busca ou ao filtro."
+              />
+            )
           ) : (
             <Table>
               <TableHeader>
@@ -162,7 +207,7 @@ export function ClientesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {clientes.map((cliente) => (
+                {visiveis.map((cliente) => (
                   <TableRow key={cliente.id} className="group">
                     <TableCell>
                       <div className="flex items-center gap-2.5">
@@ -212,8 +257,9 @@ export function ClientesPage() {
         </CardFlush>
         {clientes && clientes.length > 0 && (
           <CardFooter className="gap-1 text-xs text-muted-foreground">
-            <strong className="text-foreground">{clientes.length}</strong>
-            {clientes.length === 1 ? "cliente cadastrado" : "clientes cadastrados"}
+            <strong className="text-foreground">{visiveis.length}</strong>
+            de {clientes.length}
+            {clientes.length === 1 ? "cliente" : "clientes"}
             <span aria-hidden>·</span>
             <strong className="text-foreground">{ativos}</strong>
             {ativos === 1 ? "ativo" : "ativos"}

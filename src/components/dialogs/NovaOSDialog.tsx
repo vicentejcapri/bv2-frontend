@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react"
-import type { FormEvent, ReactNode } from "react"
-import { Plus, Trash2, TriangleAlert } from "lucide-react"
+import { useEffect, useMemo, useState } from "react"
+import type { FormEvent } from "react"
+import { Loader2, Plus, Trash2 } from "lucide-react"
 
+import { AuthAlert } from "@/components/layout/AuthShell"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -13,506 +14,367 @@ import {
   DialogForm,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import {
   Select,
   SelectContent,
   SelectItem,
-  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
 import { Field } from "./Field"
-import { NovoServicoDialog } from "./NovoServicoDialog"
+import { useAuth } from "@/hooks/useAuth"
+import { ApiError } from "@/lib/api"
+import { listarClientes } from "@/lib/cliente-api"
+import type { Cliente } from "@/lib/cliente-api"
+import { listarEquipamentos } from "@/lib/equipamento-api"
+import type { Equipamento } from "@/lib/equipamento-api"
 import { fieldProps } from "@/lib/form"
-import { OS_LOOK } from "@/components/StatusBadge"
-import { useDados } from "@/hooks/useDados"
-import { useFeedback } from "@/hooks/useFeedback"
-import {
-  formatBRL,
-  formatDataBR,
-  hojeISO,
-  maskMoeda,
-  parseMoeda,
-} from "@/lib/format"
-import type { OrdemServico, Servico } from "@/data/mocks"
+import { formatBRL, hojeISO } from "@/lib/format"
+import { criarOrdem } from "@/lib/os-api"
+import type { OrdemServico } from "@/lib/os-api"
+import { listarServicos } from "@/lib/servico-api"
+import type { Servico } from "@/lib/servico-api"
 
-/** Valor sentinela do seletor: abre o cadastro de serviço sem sair da OS. */
-const CRIAR_SERVICO = "__criar-servico__"
+type Item = { equipamentoId: string; servicoId: string }
+type Erros = Partial<Record<"clienteId" | "dataEntrada" | "itens" | "geral", string>>
 
-type ItemForm = { equipamento: string; servico: string; valor: string }
-type ErroItem = Partial<Record<"equipamento" | "valor", string>>
-type Erros = {
-  cliente?: string
-  entrada?: string
-  itens: ErroItem[]
-}
-
-const ITEM_VAZIO: ItemForm = { equipamento: "", servico: "", valor: "" }
-
-/** Estado inicial — função porque a data de entrada é sempre o dia de hoje. */
-const vazio = () => ({
-  cliente: "",
-  status: "EM_ANDAMENTO" as OrdemServico["status"],
-  entrada: hojeISO(),
-  observacoes: "",
-  itens: [{ ...ITEM_VAZIO }],
-})
+const ITEM_VAZIO: Item = { equipamentoId: "", servicoId: "" }
 
 export function NovaOSDialog({
-  onCreated,
-  trigger,
+  open,
+  onOpenChange,
+  onCriada,
 }: {
-  onCreated?: (ordem: OrdemServico) => void
-  /** Permite trocar o botão que abre o diálogo (ex.: no painel resumo). */
-  trigger?: ReactNode
+  open: boolean
+  onOpenChange: (aberto: boolean) => void
+  onCriada: (ordem: OrdemServico) => void
 }) {
-  const { addOrdem, clientes, equipamentos, servicos } = useDados()
-  const { sucesso, falha } = useFeedback()
-  const [open, setOpen] = useState(false)
-  const [form, setForm] = useState(vazio)
-  const [erros, setErros] = useState<Erros>({ itens: [] })
-  // Item que pediu o cadastro de um serviço novo — recebe o serviço criado.
-  const [itemDoNovoServico, setItemDoNovoServico] = useState<number | null>(null)
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-2xl">
+        {/* O conteúdo desmonta ao fechar, então cada abertura começa limpa. */}
+        <NovaOSForm
+          onCriada={(ordem) => {
+            onCriada(ordem)
+            onOpenChange(false)
+          }}
+        />
+      </DialogContent>
+    </Dialog>
+  )
+}
 
-  // O equipamento depende do cliente escolhido.
+function NovaOSForm({ onCriada }: { onCriada: (ordem: OrdemServico) => void }) {
+  const { token, logout } = useAuth()
+
+  const [clientes, setClientes] = useState<Cliente[] | null>(null)
+  const [equipamentos, setEquipamentos] = useState<Equipamento[] | null>(null)
+  const [servicos, setServicos] = useState<Servico[] | null>(null)
+  const [erroCarga, setErroCarga] = useState<string | null>(null)
+
+  const [clienteId, setClienteId] = useState("")
+  const [dataEntrada, setDataEntrada] = useState(hojeISO())
+  const [observacao, setObservacao] = useState("")
+  const [itens, setItens] = useState<Item[]>([ITEM_VAZIO])
+  const [erros, setErros] = useState<Erros>({})
+  const [enviando, setEnviando] = useState(false)
+
+  useEffect(() => {
+    if (!token) return
+    let cancelado = false
+
+    Promise.all([listarClientes(token), listarEquipamentos(token), listarServicos(token)])
+      .then(([pClientes, pEquipamentos, pServicos]) => {
+        if (cancelado) return
+        // O backend recusa OS de cliente inativo e serviço inativo (422).
+        setClientes(pClientes.conteudo.filter((c) => c.ativo))
+        setEquipamentos(pEquipamentos.conteudo)
+        setServicos(pServicos.conteudo.filter((s) => s.ativo))
+      })
+      .catch((error) => {
+        if (cancelado) return
+        if (error instanceof ApiError && error.status === 401) return logout()
+        setErroCarga(
+          error instanceof ApiError
+            ? error.message
+            : "Não foi possível carregar clientes, equipamentos e serviços."
+        )
+      })
+
+    return () => {
+      cancelado = true
+    }
+  }, [token, logout])
+
+  // O item só aceita equipamento do mesmo cliente da OS (regra do backend).
   const equipamentosDoCliente = useMemo(
-    () => equipamentos.filter((eq) => eq.cliente === form.cliente),
-    [equipamentos, form.cliente]
+    () => equipamentos?.filter((e) => String(e.cliente.id) === clienteId) ?? [],
+    [equipamentos, clienteId]
   )
 
-  const total = form.itens.reduce((soma, item) => soma + parseMoeda(item.valor), 0)
-  const varios = form.itens.length > 1
+  const total = useMemo(
+    () =>
+      itens.reduce((soma, item) => {
+        const servico = servicos?.find((s) => String(s.id) === item.servicoId)
+        return soma + (servico?.valor ?? 0)
+      }, 0),
+    [itens, servicos]
+  )
 
-  const fechar = (aberto: boolean) => {
-    setOpen(aberto)
-    if (!aberto) {
-      setForm(vazio())
-      setErros({ itens: [] })
-      setItemDoNovoServico(null)
-    }
-  }
-
-  // Trocar de cliente invalida os equipamentos já selecionados.
-  const handleClienteChange = (cliente: string) => {
-    setForm((atual) => ({
-      ...atual,
-      cliente,
-      itens: atual.itens.map((item) => ({ ...item, equipamento: "" })),
-    }))
-  }
-
-  const atualizarItem = (indice: number, mudanca: Partial<ItemForm>) => {
-    setForm((atual) => ({
-      ...atual,
-      itens: atual.itens.map((item, i) =>
-        i === indice ? { ...item, ...mudanca } : item
-      ),
-    }))
-  }
-
-  const adicionarItem = () => {
-    setForm((atual) => ({ ...atual, itens: [...atual.itens, { ...ITEM_VAZIO }] }))
-  }
-
-  const removerItem = (indice: number) => {
-    setForm((atual) => ({
-      ...atual,
-      itens: atual.itens.filter((_, i) => i !== indice),
-    }))
-    setErros((atuais) => ({
-      ...atuais,
-      itens: atuais.itens.filter((_, i) => i !== indice),
-    }))
-  }
-
-  /** Valor do serviço em centavos, no formato que a máscara espera. */
-  const valorDoServico = (servico: Servico) =>
-    maskMoeda(String(Math.round(parseMoeda(servico.valorBase) * 100)))
-
-  // Escolher um serviço sugere o valor, mas o usuário pode sobrescrever.
-  const handleServicoChange = (indice: number, nome: string) => {
-    if (nome === CRIAR_SERVICO) {
-      // Espera o seletor fechar antes de abrir o diálogo por cima.
-      setTimeout(() => setItemDoNovoServico(indice), 0)
-      return
-    }
-    // O seletor devolve "" ao se reabilitar depois do cadastro rápido; ignorar
-    // evita apagar o serviço que acabou de ser criado.
-    if (!nome) return
-    const servico = servicos.find((item) => item.nome === nome)
-    atualizarItem(indice, {
-      servico: nome,
-      ...(servico ? { valor: valorDoServico(servico) } : {}),
-    })
-  }
-
-  // Serviço recém-cadastrado já entra no item que abriu o diálogo.
-  const handleServicoCriado = (servico: Servico) => {
-    if (itemDoNovoServico === null) return
-    atualizarItem(itemDoNovoServico, {
-      servico: servico.nome,
-      valor: valorDoServico(servico),
-    })
-  }
-
-  const handleSubmit = (event: FormEvent) => {
-    event.preventDefault()
-
-    const errosItens: ErroItem[] = form.itens.map((item) => {
-      const erro: ErroItem = {}
-      if (!item.equipamento) erro.equipamento = "Selecione o equipamento."
-      if (parseMoeda(item.valor) <= 0)
-        erro.valor = "Informe um valor maior que zero."
-      return erro
-    })
-
-    const novosErros: Erros = { itens: errosItens }
-    if (!form.cliente) novosErros.cliente = "Selecione o cliente."
-    if (!form.entrada) novosErros.entrada = "Informe a data de entrada."
-
-    setErros(novosErros)
-    const temErroDeItem = errosItens.some(
-      (erro) => Object.keys(erro).length > 0
+  const alterarItem = (indice: number, mudanca: Partial<Item>) => {
+    setItens((atuais) =>
+      atuais.map((item, i) => (i === indice ? { ...item, ...mudanca } : item))
     )
-    if (novosErros.cliente || novosErros.entrada || temErroDeItem) return
+    setErros((atuais) => ({ ...atuais, itens: undefined }))
+  }
 
+  const trocarCliente = (valor: string) => {
+    setClienteId(valor)
+    // Equipamento de outro cliente não vale mais: recomeça os itens.
+    setItens([ITEM_VAZIO])
+    setErros((atuais) => ({ ...atuais, clienteId: undefined, itens: undefined }))
+  }
+
+  const handleSubmit = async (event: FormEvent) => {
+    event.preventDefault()
+    if (enviando || !token) return
+
+    const preenchidos = itens.filter((i) => i.equipamentoId && i.servicoId)
+    const pares = new Set(preenchidos.map((i) => `${i.equipamentoId}-${i.servicoId}`))
+    const locais: Erros = {
+      clienteId: !clienteId ? "Selecione o cliente." : undefined,
+      dataEntrada: !dataEntrada
+        ? "Informe a data de entrada."
+        : dataEntrada > hojeISO()
+          ? "A data de entrada não pode ser futura."
+          : undefined,
+      itens:
+        preenchidos.length === 0
+          ? "Lance ao menos um serviço para um equipamento."
+          : preenchidos.length !== itens.length
+            ? "Complete ou remova os itens sem equipamento ou serviço."
+            : pares.size !== preenchidos.length
+              ? "Há itens repetidos: o mesmo serviço já foi lançado para esse equipamento."
+              : undefined,
+    }
+    setErros(locais)
+    if (Object.values(locais).some(Boolean)) return
+
+    setEnviando(true)
     try {
-      const ordem = addOrdem({
-        cliente: form.cliente,
-        itens: form.itens.map((item) => ({
-          equipamento: item.equipamento,
-          servico: item.servico || "—",
-          valor: formatBRL(parseMoeda(item.valor)),
-        })),
-        status: form.status,
-        entrada: formatDataBR(form.entrada),
-        valor: formatBRL(total),
-      })
-      onCreated?.(ordem)
-      fechar(false)
-      sucesso({ titulo: "Ordem de Serviço criada com sucesso!" })
+      onCriada(
+        await criarOrdem(token, {
+          clienteId: Number(clienteId),
+          dataEntrada,
+          observacao: observacao.trim() || null,
+          itens: preenchidos.map((i) => ({
+            equipamentoId: Number(i.equipamentoId),
+            servicoId: Number(i.servicoId),
+          })),
+        })
+      )
     } catch (error) {
-      // O formulário continua aberto para o usuário tentar de novo.
-      falha({
-        titulo: "Não foi possível abrir a ordem de serviço",
-        descricao:
-          error instanceof Error
+      setEnviando(false)
+      if (error instanceof ApiError && error.status === 401) return logout()
+      if (error instanceof ApiError && error.status === 400 && error.erros) {
+        return setErros({ ...error.erros })
+      }
+      // 422 (cliente inativo, serviço inativo, equipamento de outro cliente) e
+      // 409 (item repetido) vêm com mensagem pronta do backend.
+      setErros({
+        geral:
+          error instanceof ApiError
             ? error.message
-            : "Confira os dados e tente novamente.",
-        botao: "Voltar ao formulário",
+            : "Algo deu errado. Tente novamente.",
       })
     }
   }
+
+  const carregando = !clientes || !equipamentos || !servicos
 
   return (
-    <Dialog open={open} onOpenChange={fechar}>
-      <DialogTrigger asChild>
-        {trigger ?? (
-          <Button>
-            <Plus />
-            Nova ordem de serviço
-          </Button>
-        )}
-      </DialogTrigger>
+    <DialogForm onSubmit={handleSubmit} noValidate>
+      <DialogHeader>
+        <DialogTitle>Nova ordem de serviço</DialogTitle>
+        <DialogDescription>
+          A ordem nasce em andamento e precisa de ao menos um serviço lançado.
+        </DialogDescription>
+      </DialogHeader>
 
-      <DialogContent className="sm:max-w-lg">
-        <DialogForm onSubmit={handleSubmit} noValidate>
-          <DialogHeader>
-            <DialogTitle>Nova ordem de serviço</DialogTitle>
-            <DialogDescription>
-              Os avisos ao cliente pelo WhatsApp saem na conclusão e na
-              entrega, conforme configurado em Notificações.
-            </DialogDescription>
-          </DialogHeader>
+      <DialogBody className="space-y-4">
+        {erroCarga && <AuthAlert tom="erro">{erroCarga}</AuthAlert>}
 
-          <DialogBody className="space-y-4">
-            <Field
-              id="os-cliente"
-              label="Cliente"
-              required
-              error={erros.cliente}
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field
+            id="os-cliente"
+            label="Cliente"
+            required
+            error={erros.clienteId}
+            hint={
+              clientes?.length === 0
+                ? "Nenhum cliente ativo. Cadastre ou ative um cliente primeiro."
+                : "Só aparecem clientes ativos."
+            }
+          >
+            <Select
+              value={clienteId}
+              onValueChange={trocarCliente}
+              disabled={!clientes || clientes.length === 0}
             >
-              <Select value={form.cliente} onValueChange={handleClienteChange}>
-                <SelectTrigger
-                  id="os-cliente"
-                  aria-invalid={erros.cliente ? true : undefined}
-                >
-                  <SelectValue placeholder="Selecione o cliente" />
-                </SelectTrigger>
-                <SelectContent>
-                  {clientes.map((cliente) => (
-                    <SelectItem key={cliente.id} value={cliente.nome}>
-                      {cliente.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field
-                id="os-entrada"
-                label="Data de entrada"
-                required
-                error={erros.entrada}
-                hint="Ajuste se a ordem de serviço for de outro dia."
+              <SelectTrigger
+                id="os-cliente"
+                aria-invalid={erros.clienteId ? true : undefined}
+                aria-describedby={erros.clienteId ? "os-cliente-error" : undefined}
               >
-                <Input
-                  {...fieldProps("os-entrada", erros.entrada)}
-                  type="date"
-                  value={form.entrada}
-                  onChange={(event) =>
-                    setForm({ ...form, entrada: event.target.value })
-                  }
-                />
-              </Field>
+                <SelectValue placeholder={carregando ? "Carregando…" : "Selecione o cliente"} />
+              </SelectTrigger>
+              <SelectContent>
+                {clientes?.map((cliente) => (
+                  <SelectItem key={cliente.id} value={String(cliente.id)}>
+                    {cliente.nome}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
 
-              <Field id="os-status" label="Status inicial">
-                <Select
-                  value={form.status}
-                  onValueChange={(status) =>
-                    setForm({
-                      ...form,
-                      status: status as OrdemServico["status"],
-                    })
-                  }
-                >
-                  <SelectTrigger id="os-status">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(OS_LOOK).map(([valor, { label }]) => (
-                      <SelectItem key={valor} value={valor}>
-                        {label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-            </div>
+          <Field
+            id="os-data"
+            label="Data de entrada"
+            required
+            error={erros.dataEntrada}
+            hint="Quando o equipamento chegou na oficina."
+          >
+            <Input
+              {...fieldProps("os-data", erros.dataEntrada)}
+              type="date"
+              value={dataEntrada}
+              max={hojeISO()}
+              onChange={(event) => setDataEntrada(event.target.value)}
+            />
+          </Field>
+        </div>
 
-            {form.cliente && equipamentosDoCliente.length === 0 && (
-              <p className="flex items-start gap-2 rounded-lg bg-warning-soft px-3 py-2 text-xs text-warning-soft-foreground">
-                <TriangleAlert className="mt-0.5 size-3.5 shrink-0" />
-                Este cliente ainda não tem equipamentos. Cadastre um em
-                Equipamentos antes de abrir a ordem de serviço.
-              </p>
-            )}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium">
+              Equipamentos e serviços
+              <span aria-hidden className="-ml-0.5 text-destructive">
+                *
+              </span>
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="xs"
+              onClick={() => setItens((atuais) => [...atuais, ITEM_VAZIO])}
+              disabled={!clienteId}
+            >
+              <Plus />
+              Adicionar item
+            </Button>
+          </div>
 
-            {/* Itens da OS: um serviço por linha, cada um com seu equipamento. */}
-            <div className="space-y-3">
-              <div className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <Label asChild>
-                    <p>Serviços</p>
-                  </Label>
-                  <span className="text-xs text-muted-foreground">
-                    {form.itens.length} {varios ? "itens" : "item"}
-                  </span>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Um serviço por linha — o mesmo equipamento pode se repetir.
-                </p>
-              </div>
-
-              {form.itens.map((item, indice) => {
-                const erroItem = erros.itens[indice] ?? {}
-                const idEquipamento = `os-item-${indice}-equipamento`
-                const idServico = `os-item-${indice}-servico`
-                const idValor = `os-item-${indice}-valor`
-
-                return (
-                  <div
-                    key={indice}
-                    className="space-y-3 rounded-lg border border-border bg-muted/40 p-3"
-                  >
-                    {varios && (
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                          Item {indice + 1}
-                        </span>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-xs"
-                          onClick={() => removerItem(indice)}
-                        >
-                          <Trash2 />
-                          <span className="sr-only">
-                            Remover item {indice + 1}
-                          </span>
-                        </Button>
-                      </div>
-                    )}
-
-                    <Field
-                      id={idEquipamento}
-                      label="Equipamento"
-                      required
-                      error={erroItem.equipamento}
-                      hint={
-                        !form.cliente && indice === 0
-                          ? "Escolha um cliente para ver os equipamentos dele."
-                          : undefined
-                      }
+          {!clienteId ? (
+            <p className="rounded-lg border border-dashed border-border px-3 py-6 text-center text-sm text-muted-foreground">
+              Selecione o cliente para lançar os serviços.
+            </p>
+          ) : equipamentosDoCliente.length === 0 ? (
+            <p className="rounded-lg border border-dashed border-border px-3 py-6 text-center text-sm text-muted-foreground">
+              Este cliente não tem equipamentos cadastrados. Cadastre o
+              equipamento antes de abrir a ordem de serviço.
+            </p>
+          ) : (
+            <ul className="space-y-2">
+              {itens.map((item, indice) => (
+                <li key={indice} className="flex items-end gap-2">
+                  <div className="grid min-w-0 flex-1 gap-2 sm:grid-cols-2">
+                    <Select
+                      value={item.equipamentoId}
+                      onValueChange={(valor) => alterarItem(indice, { equipamentoId: valor })}
                     >
-                      <Select
-                        value={item.equipamento}
-                        onValueChange={(equipamento) =>
-                          atualizarItem(indice, { equipamento })
-                        }
-                        disabled={
-                          !form.cliente || equipamentosDoCliente.length === 0
-                        }
-                      >
-                        <SelectTrigger
-                          id={idEquipamento}
-                          className="bg-card"
-                          aria-invalid={erroItem.equipamento ? true : undefined}
-                        >
-                          <SelectValue placeholder="Selecione o equipamento" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {equipamentosDoCliente.map((eq) => (
-                            <SelectItem
-                              key={eq.id}
-                              value={`${eq.tipo} ${eq.marca} ${eq.modelo}`.trim()}
-                            >
-                              {eq.tipo} · {eq.marca} {eq.modelo}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </Field>
+                      <SelectTrigger aria-label={`Equipamento do item ${indice + 1}`}>
+                        <SelectValue placeholder="Equipamento" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {equipamentosDoCliente.map((equipamento) => (
+                          <SelectItem key={equipamento.id} value={String(equipamento.id)}>
+                            {equipamento.nome} · {equipamento.marca.nome}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
 
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <Field id={idServico} label="Serviço" optional>
-                        <Select
-                          value={item.servico}
-                          onValueChange={(nome) =>
-                            handleServicoChange(indice, nome)
-                          }
-                        >
-                          <SelectTrigger id={idServico} className="bg-card">
-                            {/* Na lista o valor base ajuda; no gatilho, só o nome. */}
-                            <SelectValue placeholder="Nenhum">
-                              {item.servico}
-                            </SelectValue>
-                          </SelectTrigger>
-                          <SelectContent>
-                            {servicos.map((servico) => (
-                              <SelectItem key={servico.id} value={servico.nome}>
-                                {servico.nome} — {servico.valorBase}
-                              </SelectItem>
-                            ))}
-                            <SelectSeparator />
-                            <SelectItem
-                              value={CRIAR_SERVICO}
-                              className="font-medium"
-                            >
-                              <span className="flex items-center gap-2">
-                                <Plus className="size-3.5" />
-                                Cadastrar novo serviço
-                              </span>
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </Field>
-
-                      <Field
-                        id={idValor}
-                        label="Valor"
-                        required
-                        error={erroItem.valor}
-                      >
-                        <div className="relative">
-                          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                            R$
-                          </span>
-                          <Input
-                            {...fieldProps(idValor, erroItem.valor)}
-                            value={item.valor}
-                            onChange={(event) =>
-                              atualizarItem(indice, {
-                                valor: maskMoeda(event.target.value),
-                              })
-                            }
-                            inputMode="numeric"
-                            placeholder="0,00"
-                            className="bg-card pl-10 text-right font-medium"
-                          />
-                        </div>
-                      </Field>
-                    </div>
+                    <Select
+                      value={item.servicoId}
+                      onValueChange={(valor) => alterarItem(indice, { servicoId: valor })}
+                    >
+                      <SelectTrigger aria-label={`Serviço do item ${indice + 1}`}>
+                        <SelectValue placeholder="Serviço" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {servicos?.map((servico) => (
+                          <SelectItem key={servico.id} value={String(servico.id)}>
+                            {servico.nome} — {formatBRL(servico.valor)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                )
-              })}
 
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="w-full"
-                onClick={adicionarItem}
-              >
-                <Plus />
-                Adicionar serviço
-              </Button>
-            </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setItens((atuais) => atuais.filter((_, i) => i !== indice))}
+                    disabled={itens.length === 1}
+                  >
+                    <Trash2 />
+                    <span className="sr-only">Remover item {indice + 1}</span>
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          )}
 
-            {/* Fecha o orçamento: soma dos itens. */}
-            <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2.5">
-              <span className="text-sm font-medium">
-                {varios ? "Valor total" : "Valor"}
-              </span>
-              <span className="font-heading text-base font-semibold tabular-nums">
-                {formatBRL(total)}
-              </span>
-            </div>
+          {erros.itens && (
+            <p className="text-xs font-medium text-destructive">{erros.itens}</p>
+          )}
 
-            <Field
-              id="os-observacoes"
-              label="Defeito relatado"
-              optional
-              hint="Aparece na impressão da ordem de serviço."
-            >
-              <Textarea
-                id="os-observacoes"
-                value={form.observacoes}
-                onChange={(event) =>
-                  setForm({ ...form, observacoes: event.target.value })
-                }
-                placeholder="Cliente relata ruído no eixo e superaquecimento…"
-                rows={3}
-              />
-            </Field>
-          </DialogBody>
+          <div className="flex items-baseline justify-between border-t border-border pt-2 text-sm">
+            <span className="text-muted-foreground">Valor total</span>
+            <strong className="tabular-nums">{formatBRL(total)}</strong>
+          </div>
+        </div>
 
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button type="button" variant="outline">
-                Cancelar
-              </Button>
-            </DialogClose>
-            <Button type="submit">Abrir ordem de serviço</Button>
-          </DialogFooter>
-        </DialogForm>
-      </DialogContent>
+        <Field id="os-observacao" label="Observação" optional>
+          <Textarea
+            id="os-observacao"
+            value={observacao}
+            maxLength={500}
+            onChange={(event) => setObservacao(event.target.value)}
+            placeholder="Combinações com o cliente, prazo, estado do equipamento…"
+            rows={2}
+          />
+        </Field>
 
-      {/* Cadastro rápido de serviço, aberto pelo próprio seletor do item. */}
-      <NovoServicoDialog
-        trigger={null}
-        open={itemDoNovoServico !== null}
-        onOpenChange={(aberto) => {
-          if (!aberto) setItemDoNovoServico(null)
-        }}
-        onCreated={handleServicoCriado}
-      />
-    </Dialog>
+        {erros.geral && <AuthAlert tom="erro">{erros.geral}</AuthAlert>}
+      </DialogBody>
+
+      <DialogFooter>
+        <DialogClose asChild>
+          <Button type="button" variant="outline">
+            Cancelar
+          </Button>
+        </DialogClose>
+        <Button type="submit" disabled={enviando || carregando} aria-busy={enviando}>
+          {enviando && <Loader2 className="animate-spin" aria-hidden />}
+          Abrir ordem de serviço
+        </Button>
+      </DialogFooter>
+    </DialogForm>
   )
 }

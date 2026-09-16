@@ -252,47 +252,15 @@ function EquipamentoForm({
       <DialogBody className="space-y-4">
         {erroCarga && <AuthAlert tom="erro">{erroCarga}</AuthAlert>}
 
-        <Field
-          id="equip-cliente"
-          label="Dono"
-          required={!editando}
-          error={erros.clienteId}
-          hint={
-            editando
-              ? undefined
-              : clientes?.length === 0
-                ? "Nenhum cliente ativo. Cadastre ou ative um cliente primeiro."
-                : "Só aparecem clientes ativos."
-          }
-        >
-          {equipamento ? (
-            <Input id="equip-cliente" value={equipamento.cliente.nome} disabled />
-          ) : (
-            <Select
-              value={clienteId}
-              onValueChange={(valor) => {
-                setClienteId(valor)
-                setErros((atuais) => ({ ...atuais, clienteId: undefined }))
-              }}
-              disabled={!clientes || clientes.length === 0}
-            >
-              <SelectTrigger
-                id="equip-cliente"
-                aria-invalid={erros.clienteId ? true : undefined}
-                aria-describedby={erros.clienteId ? "equip-cliente-error" : undefined}
-                autoFocus
-              >
-                <SelectValue placeholder={carregando ? "Carregando…" : "Selecione o cliente"} />
-              </SelectTrigger>
-              <SelectContent>
-                {clientes?.map((cliente) => (
-                  <SelectItem key={cliente.id} value={String(cliente.id)}>
-                    {cliente.nome}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
+        <Field id="equip-nome" label="Nome" required error={erros.nome}>
+          <Input
+            {...fieldProps("equip-nome", erros.nome)}
+            value={nome}
+            maxLength={50}
+            onChange={(event) => setNome(event.target.value)}
+            placeholder="Furadeira de impacto"
+            autoFocus
+          />
         </Field>
 
         <Field id="equip-marca" label="Marca" required error={erros.marcaId ?? erroNovaMarca}>
@@ -361,15 +329,46 @@ function EquipamentoForm({
           )}
         </Field>
 
-        <Field id="equip-nome" label="Nome" required error={erros.nome}>
-          <Input
-            {...fieldProps("equip-nome", erros.nome)}
-            value={nome}
-            maxLength={50}
-            onChange={(event) => setNome(event.target.value)}
-            placeholder="Furadeira de impacto"
-            autoFocus={editando}
-          />
+        <Field
+          id="equip-cliente"
+          label="Dono"
+          required={!editando}
+          error={erros.clienteId}
+          hint={
+            editando
+              ? undefined
+              : clientes?.length === 0
+                ? "Nenhum cliente ativo. Cadastre ou ative um cliente primeiro."
+                : "Só aparecem clientes ativos."
+          }
+        >
+          {equipamento ? (
+            <Input id="equip-cliente" value={equipamento.cliente.nome} disabled />
+          ) : (
+            <Select
+              value={clienteId}
+              onValueChange={(valor) => {
+                setClienteId(valor)
+                setErros((atuais) => ({ ...atuais, clienteId: undefined }))
+              }}
+              disabled={!clientes || clientes.length === 0}
+            >
+              <SelectTrigger
+                id="equip-cliente"
+                aria-invalid={erros.clienteId ? true : undefined}
+                aria-describedby={erros.clienteId ? "equip-cliente-error" : undefined}
+              >
+                <SelectValue placeholder={carregando ? "Carregando…" : "Selecione o cliente"} />
+              </SelectTrigger>
+              <SelectContent>
+                {clientes?.map((cliente) => (
+                  <SelectItem key={cliente.id} value={String(cliente.id)}>
+                    {cliente.nome}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </Field>
 
         {erros.geral && <AuthAlert tom="erro">{erros.geral}</AuthAlert>}
