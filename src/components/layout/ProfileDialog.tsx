@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/tooltip"
 import { useAuth } from "@/hooks/useAuth"
 import { ApiError } from "@/lib/api"
+import { avisarCredenciaisAlteradas } from "@/lib/credenciais-canal"
 import { validarEmail } from "@/lib/auth-api"
 import { initialsOf } from "@/lib/format"
 import { fieldProps } from "@/lib/form"
@@ -431,7 +432,9 @@ function FormSenha() {
         senhaNova,
         senhaNovaConfirmacao: confirmacao,
       })
-      // O backend invalida o token atual: sai e volta ao login com o aviso.
+      // O backend invalida o token atual: sai e volta ao login com o aviso. As outras
+      // abas logadas nesta conta também saem.
+      avisarCredenciaisAlteradas()
       logout()
       navigate("/login", {
         replace: true,

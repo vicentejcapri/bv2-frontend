@@ -1,4 +1,4 @@
-import { CheckCircle2, TriangleAlert } from "lucide-react"
+import { CheckCircle2, ShieldAlert, TriangleAlert } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 
-export type FeedbackTom = "sucesso" | "falha"
+export type FeedbackTom = "sucesso" | "falha" | "aviso"
 
 /** Ícone e cor de cada desfecho — mesmos tokens dos badges de status. */
 const TOM_LOOK = {
@@ -23,6 +23,10 @@ const TOM_LOOK = {
   falha: {
     icon: TriangleAlert,
     chip: "bg-destructive-soft text-destructive-soft-foreground",
+  },
+  aviso: {
+    icon: ShieldAlert,
+    chip: "bg-warning-soft text-warning-soft-foreground",
   },
 } as const
 

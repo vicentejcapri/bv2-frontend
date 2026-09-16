@@ -5,6 +5,7 @@ import { Loader2 } from "lucide-react"
 import { AuthAlert, AuthShell } from "@/components/layout/AuthShell"
 import { useAuth } from "@/hooks/useAuth"
 import { ApiError } from "@/lib/api"
+import { avisarCredenciaisAlteradas } from "@/lib/credenciais-canal"
 import { confirmarTrocaEmail } from "@/lib/usuario-api"
 
 type Estado =
@@ -33,7 +34,9 @@ export function ConfirmarEmailPage() {
     enviado.current = true
     confirmarTrocaEmail(token)
       .then(() => {
-        // A troca derruba as sessões anteriores; a local também precisa sair.
+        // A troca derruba as sessões anteriores; a local também precisa sair, e as outras
+        // abas logadas nesta conta (o link abre numa aba nova) ficam sabendo pelo canal.
+        avisarCredenciaisAlteradas()
         logout()
         setEstado({ fase: "ok" })
       })
