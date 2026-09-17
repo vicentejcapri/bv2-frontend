@@ -81,3 +81,16 @@ export function alterarStatusOrdem(
     token,
   })
 }
+
+/**
+ * Um valor fixa o total à mão e o congela: adicionar ou remover itens deixa de
+ * recalculá-lo. `null` volta ao automático (soma dos serviços). Só enquanto
+ * EM_ANDAMENTO — depois disso responde 422.
+ */
+export function definirValorTotalOrdem(token: string, id: number, valorTotal: number | null) {
+  return apiFetch<OrdemServico>(`/ordens-servico/${id}/valor-total`, {
+    method: "PATCH",
+    token,
+    body: { valorTotal },
+  })
+}

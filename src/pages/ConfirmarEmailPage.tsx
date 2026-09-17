@@ -13,7 +13,7 @@ type Estado =
   | { fase: "ok" }
   | { fase: "erro"; mensagem: string }
 
-const linkClasse = "text-sm font-medium text-foreground underline underline-offset-4"
+const linkClasse = "text-sm font-medium text-accent-strong underline underline-offset-4"
 
 /** Destino do link enviado pelo backend em PUT /usuarios/eu/email. */
 export function ConfirmarEmailPage() {

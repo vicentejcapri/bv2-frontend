@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react"
 import { Outlet, useLocation, useNavigate } from "react-router-dom"
-import { Menu, Search, X } from "lucide-react"
+import { Loader2, Menu, Search, X } from "lucide-react"
 
+import { ContaSelect } from "@/components/ContaSelect"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { findMenuItem } from "@/config/menu"
 import { useAuth } from "@/hooks/useAuth"
+import { useConta } from "@/hooks/useConta"
 import { cn } from "@/lib/utils"
 import { Sidebar } from "./Sidebar"
 
@@ -22,8 +24,11 @@ export function AppLayout() {
   const { pathname } = useLocation()
   const navigate = useNavigate()
   const { logout } = useAuth()
+  const { isMaster, contaId, pronto } = useConta()
 
   const currentPage = findMenuItem(pathname)
+  // O cadastro de usuários é do sistema inteiro, não de uma conta.
+  const mostrarConta = isMaster && !currentPage?.somenteMaster
 
   useEffect(() => {
     localStorage.setItem(SIDEBAR_KEY, String(isSidebarOpen))
@@ -124,6 +129,8 @@ export function AppLayout() {
               </p>
             </div>
 
+            {mostrarConta && <ContaSelect />}
+
             <div className="relative hidden lg:block">
               <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -133,14 +140,29 @@ export function AppLayout() {
             </div>
           </header>
 
-          {/* Conteúdo — key na rota reinicia a animação de entrada */}
+          {/*
+            Conteúdo — a key reinicia a animação de entrada e remonta a página ao
+            trocar de rota ou de conta: cada tela refaz a própria busca, já com o
+            header da conta nova, e descarta as respostas da anterior.
+          */}
           <main className="custom-scrollbar flex-1 overflow-y-auto">
-            <div
-              key={pathname}
-              className="mx-auto w-full max-w-7xl animate-fade-up space-y-6 px-4 py-6 sm:px-6 lg:py-8"
-            >
-              <Outlet />
-            </div>
+            {pronto ? (
+              <div
+                key={`${pathname}|${contaId ?? "propria"}`}
+                className="mx-auto w-full max-w-7xl animate-fade-up space-y-6 px-4 py-6 sm:px-6 lg:py-8"
+              >
+                <Outlet />
+              </div>
+            ) : (
+              // Até saber a conta, nenhuma tela busca nada: evita mostrar dados de outra conta.
+              <div
+                className="flex h-full items-center justify-center gap-2 text-sm text-muted-foreground"
+                role="status"
+              >
+                <Loader2 className="size-4 animate-spin" aria-hidden />
+                Carregando…
+              </div>
+            )}
           </main>
         </div>
       </div>

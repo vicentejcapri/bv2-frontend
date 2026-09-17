@@ -52,7 +52,7 @@ export function EsqueciSenhaPage() {
       <Link
         to="/login"
         state={{ email }}
-        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-accent-strong hover:underline"
       >
         <ArrowLeft className="size-3.5" aria-hidden />
         Voltar ao login

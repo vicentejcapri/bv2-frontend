@@ -1,5 +1,6 @@
 import {
   ClipboardList,
+  UserCog,
   LayoutDashboard,
   MessageSquare,
   Tags,
@@ -14,6 +15,8 @@ export type MenuItem = {
   /** Texto de apoio exibido no cabeçalho da página. */
   description: string
   icon: LucideIcon
+  /** Só aparece e só abre para o MASTER. */
+  somenteMaster?: boolean
 }
 
 export type MenuGroup = {
@@ -66,6 +69,18 @@ export const menuGroups: MenuGroup[] = [
         label: "Serviços",
         description: "Tabela de preços padronizados para agilizar orçamentos.",
         icon: Tags,
+      },
+    ],
+  },
+  {
+    label: "Administração",
+    items: [
+      {
+        path: "/usuarios",
+        label: "Usuários",
+        description: "Contas com acesso ao sistema, cada uma com sua própria base.",
+        icon: UserCog,
+        somenteMaster: true,
       },
     ],
   },

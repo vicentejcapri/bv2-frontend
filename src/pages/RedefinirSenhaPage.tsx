@@ -15,7 +15,7 @@ import { fieldProps } from "@/lib/form"
 type Erros = { senhaNova?: string; senhaNovaConfirmacao?: string; geral?: string }
 
 const linkClasse =
-  "text-sm font-medium text-foreground underline underline-offset-4"
+  "text-sm font-medium text-accent-strong underline underline-offset-4"
 
 export function RedefinirSenhaPage() {
   const [params] = useSearchParams()
@@ -124,7 +124,7 @@ export function RedefinirSenhaPage() {
         {erros.geral && (
           <AuthAlert tom="erro">
             {erros.geral}{" "}
-            <Link to="/esqueci-senha" className="font-medium underline underline-offset-4">
+            <Link to="/esqueci-senha" className="font-medium text-accent-strong underline underline-offset-4">
               Solicitar novo link
             </Link>
           </AuthAlert>
@@ -144,7 +144,7 @@ export function RedefinirSenhaPage() {
         <div className="text-center">
           <Link
             to="/login"
-            className="text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+            className="text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-accent-strong hover:underline"
           >
             Voltar ao login
           </Link>

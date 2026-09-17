@@ -130,7 +130,7 @@ export function ServicosPage() {
   }, [servicos, busca, filtroSituacao])
 
   const botaoNovo = (
-    <Button onClick={() => abrir({ tipo: "novo" })}>
+    <Button variant="accent" onClick={() => abrir({ tipo: "novo" })}>
       <Plus />
       Novo serviço
     </Button>

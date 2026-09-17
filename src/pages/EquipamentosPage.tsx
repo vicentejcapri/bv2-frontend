@@ -90,7 +90,7 @@ export function EquipamentosPage() {
   }, [equipamentos, busca])
 
   const botaoNovo = (
-    <Button onClick={() => abrir({ tipo: "novo" })}>
+    <Button variant="accent" onClick={() => abrir({ tipo: "novo" })}>
       <Plus />
       Novo equipamento
     </Button>

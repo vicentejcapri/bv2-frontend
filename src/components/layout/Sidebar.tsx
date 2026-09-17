@@ -3,6 +3,7 @@ import { Link, useLocation } from "react-router-dom"
 import { LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react"
 
 import { menuGroups, type MenuItem } from "@/config/menu"
+import { useConta } from "@/hooks/useConta"
 import { cn } from "@/lib/utils"
 import {
   Tooltip,
@@ -10,7 +11,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { ProfileDialog } from "./ProfileDialog"
-import m2Logo from "@/assets/m2_logo.jpeg"
+import bv2Logo from "@/assets/bv2_logo_sem_fundo.png"
 
 type SidebarProps = {
   isOpen: boolean
@@ -29,38 +30,36 @@ export function Sidebar({
   forceExpanded = false,
 }: SidebarProps) {
   const { pathname } = useLocation()
+  const { isMaster } = useConta()
   const expanded = forceExpanded || isOpen
+
+  const grupos = menuGroups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => isMaster || !item.somenteMaster),
+    }))
+    .filter((group) => group.items.length > 0)
 
   return (
     <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
       {/* Marca */}
       <div
         className={cn(
-          "flex h-16 shrink-0 items-center gap-3 border-b border-sidebar-border",
-          expanded ? "px-4" : "justify-center px-2"
+          "relative flex shrink-0 items-center justify-center border-b border-sidebar-border",
+          expanded ? "px-4 py-4" : "h-16 px-2"
         )}
       >
         <img
-          src={m2Logo}
-          alt=""
-          className="size-9 shrink-0 rounded-lg object-cover ring-1 ring-sidebar-border"
+          src={bv2Logo}
+          alt="BV2 Software"
+          className={cn("shrink-0 object-contain", expanded ? "size-24" : "size-12")}
         />
-        {expanded && (
-          <div className="min-w-0 flex-1">
-            <p className="truncate font-heading text-sm font-semibold text-white">
-              M2 Equipamentos
-            </p>
-            <p className="truncate text-xs text-sidebar-muted">
-              Gestão de Ordens de Serviço
-            </p>
-          </div>
-        )}
         {!forceExpanded && expanded && (
           <button
             type="button"
             onClick={onToggle}
             title="Recolher menu"
-            className="rounded-md p-1.5 text-sidebar-muted transition-colors hover:bg-sidebar-accent hover:text-white focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/40"
+            className="absolute right-2 top-2 rounded-md p-1.5 text-sidebar-muted transition-colors hover:bg-sidebar-accent hover:text-white focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/40"
           >
             <PanelLeftClose className="size-4" />
             <span className="sr-only">Recolher menu</span>
@@ -90,7 +89,7 @@ export function Sidebar({
           expanded ? "px-3" : "px-2"
         )}
       >
-        {menuGroups.map((group) => (
+        {grupos.map((group) => (
           <div key={group.label} className="space-y-1">
             {expanded ? (
               <p className="px-3 pb-1 text-[0.6875rem] font-semibold uppercase tracking-wider text-sidebar-muted">
@@ -154,7 +153,7 @@ function NavLinkItem({
         "group relative flex h-10 items-center rounded-lg text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/40",
         expanded ? "gap-3 px-3" : "justify-center px-0",
         isActive
-          ? "bg-sidebar-accent text-accent"
+          ? "bg-sidebar-accent text-white"
           : "text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-white"
       )}
     >
