@@ -1,4 +1,5 @@
 import { apiFetch } from "@/lib/api"
+import type { Pagina } from "@/lib/api"
 
 export type RoleUsuario = "MASTER" | "ADMIN"
 
@@ -50,5 +51,45 @@ export function confirmarTrocaEmail(tokenLink: string) {
   return apiFetch("/auth/email/confirmar", {
     method: "POST",
     body: { token: tokenLink },
+  })
+}
+
+// ------------------------------------------------------------------
+// Cadastro de usuários do sistema — só o MASTER (403 para o ADMIN)
+// ------------------------------------------------------------------
+
+/** Uma página grande basta: o sistema tem poucos usuários. */
+export function listarUsuarios(token: string, filtro: { ativo?: boolean } = {}) {
+  const query = new URLSearchParams({ size: "200", sort: "nome,asc" })
+  if (filtro.ativo !== undefined) query.set("ativo", String(filtro.ativo))
+  return apiFetch<Pagina<Usuario>>(`/usuarios?${query}`, { token })
+}
+
+/** Nasce sempre ADMIN, com os templates de notificação desligados. 409 se o e-mail já existe. */
+export function criarUsuario(
+  token: string,
+  body: { nome: string; email: string; senha: string }
+) {
+  return apiFetch<Usuario>("/usuarios", { method: "POST", token, body })
+}
+
+/** Só o nome: e-mail e senha de outro usuário não mudam por aqui. */
+export function atualizarUsuario(token: string, id: number, nome: string) {
+  return apiFetch<Usuario>(`/usuarios/${id}`, { method: "PUT", token, body: { nome } })
+}
+
+/**
+ * 204. Apaga o usuário e TODA a conta dele (clientes, equipamentos, serviços, OS,
+ * notificações e templates). Irreversível; o MASTER não pode ser excluído (422).
+ */
+export function excluirUsuario(token: string, id: number) {
+  return apiFetch(`/usuarios/${id}`, { method: "DELETE", token })
+}
+
+/** Idempotente. Desativar o MASTER responde 422. */
+export function alterarSituacaoUsuario(token: string, id: number, ativo: boolean) {
+  return apiFetch<Usuario>(`/usuarios/${id}/${ativo ? "ativar" : "desativar"}`, {
+    method: "PATCH",
+    token,
   })
 }

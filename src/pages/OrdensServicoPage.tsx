@@ -269,6 +269,12 @@ export function OrdensServicoPage() {
         open={detalheAberto}
         onOpenChange={setDetalheAberto}
         ordem={detalhe ?? undefined}
+        onAtualizada={(atualizada) => {
+          setDetalhe(atualizada)
+          setOrdens((atuais) =>
+            atuais?.map((os) => (os.id === atualizada.id ? atualizada : os)) ?? null
+          )
+        }}
       />
 
       <AvisoStatus mensagem={aviso} onFechar={() => setAviso(null)} />

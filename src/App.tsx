@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom"
 import { AppLayout } from "@/components/layout/AppLayout"
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute"
+import { SomenteMaster } from "@/components/layout/SomenteMaster"
 import { LoginPage } from "@/pages/LoginPage"
 import { EsqueciSenhaPage } from "@/pages/EsqueciSenhaPage"
 import { RedefinirSenhaPage } from "@/pages/RedefinirSenhaPage"
@@ -11,6 +12,7 @@ import { ClientesPage } from "@/pages/ClientesPage"
 import { EquipamentosPage } from "@/pages/EquipamentosPage"
 import { ServicosPage } from "@/pages/ServicosPage"
 import { NotificacoesPage } from "@/pages/NotificacoesPage"
+import { UsuariosPage } from "@/pages/UsuariosPage"
 
 export default function App() {
   return (
@@ -32,6 +34,9 @@ export default function App() {
           <Route path="/equipamentos" element={<EquipamentosPage />} />
           <Route path="/servicos" element={<ServicosPage />} />
           <Route path="/notificacoes" element={<NotificacoesPage />} />
+          <Route element={<SomenteMaster />}>
+            <Route path="/usuarios" element={<UsuariosPage />} />
+          </Route>
         </Route>
       </Route>
 

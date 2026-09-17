@@ -79,7 +79,7 @@ export function LoginPage() {
   }
 
   return (
-    <AuthShell titulo="Entrar no BV2" descricao="Acesse o painel de ordens de serviço.">
+    <AuthShell titulo="Bem vindo novamente à BV2!" descricao="Acesse agora nosso sistema.">
       <form onSubmit={handleSubmit} noValidate className="space-y-4">
         {aviso && !erros.geral && (
           <AuthAlert tom="sucesso">{aviso}</AuthAlert>

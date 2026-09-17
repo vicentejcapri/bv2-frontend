@@ -26,6 +26,18 @@ export type Pagina<T> = {
   ultima: boolean
 }
 
+/**
+ * Conta em que o MASTER está operando. Vai no header `X-Conta-Id` de toda chamada;
+ * `null` (ADMIN, ou MASTER na própria conta) omite o header e o backend usa a conta
+ * do token. Estado de módulo, e não parâmetro, para nenhuma função `*-api.ts`
+ * precisar mudar de assinatura — quem define é o ContaProvider.
+ */
+let contaAtiva: number | null = null
+
+export function definirContaAtiva(id: number | null) {
+  contaAtiva = id
+}
+
 type Opcoes = {
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE"
   body?: unknown
@@ -39,6 +51,7 @@ export async function apiFetch<T = void>(
   const headers: Record<string, string> = { Accept: "application/json" }
   if (body !== undefined) headers["Content-Type"] = "application/json"
   if (token) headers.Authorization = `Bearer ${token}`
+  if (token && contaAtiva !== null) headers["X-Conta-Id"] = String(contaAtiva)
 
   let resposta: Response
   try {

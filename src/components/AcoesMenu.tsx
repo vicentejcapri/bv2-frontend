@@ -20,7 +20,8 @@ export function AcoesMenu({
   /** Nome do registro, para o leitor de tela: "Ações de {rotulo}". */
   rotulo: string
   onEditar: () => void
-  onExcluir: () => void
+  /** Sem ele, o menu só oferece Editar. */
+  onExcluir?: () => void
 }) {
   const [open, setOpen] = useState(false)
 
@@ -50,14 +51,16 @@ export function AcoesMenu({
           <Pencil className="size-3.5 text-muted-foreground" aria-hidden />
           Editar
         </button>
-        <button
-          type="button"
-          onClick={escolher(onExcluir)}
-          className="flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-destructive transition-colors hover:bg-destructive-soft focus-visible:bg-destructive-soft focus-visible:outline-none"
-        >
-          <Trash2 className="size-3.5" aria-hidden />
-          Excluir
-        </button>
+        {onExcluir && (
+          <button
+            type="button"
+            onClick={escolher(onExcluir)}
+            className="flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-destructive transition-colors hover:bg-destructive-soft focus-visible:bg-destructive-soft focus-visible:outline-none"
+          >
+            <Trash2 className="size-3.5" aria-hidden />
+            Excluir
+          </button>
+        )}
       </PopoverContent>
     </Popover>
   )

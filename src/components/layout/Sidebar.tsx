@@ -3,6 +3,7 @@ import { Link, useLocation } from "react-router-dom"
 import { LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react"
 
 import { menuGroups, type MenuItem } from "@/config/menu"
+import { useConta } from "@/hooks/useConta"
 import { cn } from "@/lib/utils"
 import {
   Tooltip,
@@ -29,7 +30,15 @@ export function Sidebar({
   forceExpanded = false,
 }: SidebarProps) {
   const { pathname } = useLocation()
+  const { isMaster } = useConta()
   const expanded = forceExpanded || isOpen
+
+  const grupos = menuGroups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => isMaster || !item.somenteMaster),
+    }))
+    .filter((group) => group.items.length > 0)
 
   return (
     <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
@@ -80,7 +89,7 @@ export function Sidebar({
           expanded ? "px-3" : "px-2"
         )}
       >
-        {menuGroups.map((group) => (
+        {grupos.map((group) => (
           <div key={group.label} className="space-y-1">
             {expanded ? (
               <p className="px-3 pb-1 text-[0.6875rem] font-semibold uppercase tracking-wider text-sidebar-muted">
