@@ -2,7 +2,7 @@ import type { ReactNode } from "react"
 import { Link, useLocation } from "react-router-dom"
 import { LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react"
 
-import { menuGroups, type MenuItem } from "@/config/menu"
+import { menuGroups, podeVerItem, type MenuItem } from "@/config/menu"
 import { useConta } from "@/hooks/useConta"
 import { cn } from "@/lib/utils"
 import {
@@ -30,13 +30,13 @@ export function Sidebar({
   forceExpanded = false,
 }: SidebarProps) {
   const { pathname } = useLocation()
-  const { isMaster } = useConta()
+  const { isMaster, emailConta } = useConta()
   const expanded = forceExpanded || isOpen
 
   const grupos = menuGroups
     .map((group) => ({
       ...group,
-      items: group.items.filter((item) => isMaster || !item.somenteMaster),
+      items: group.items.filter((item) => podeVerItem(item, { isMaster, emailConta })),
     }))
     .filter((group) => group.items.length > 0)
 

@@ -11,6 +11,12 @@ export type ContaContextValue = {
   contaId: number | null
   /** Usuários ativos que o MASTER pode escolher (inclui ele mesmo). Vazio para o ADMIN. */
   contas: Usuario[]
+  /**
+   * E-mail do dono da conta em que se está operando — o do próprio usuário, ou o
+   * da conta escolhida pelo MASTER. É por ele que as telas restritas a uma conta
+   * aparecem ou somem (ver config/menu.ts).
+   */
+  emailConta: string | null
   /** `false` enquanto ainda não se sabe em qual conta operar — as telas esperam. */
   pronto: boolean
   trocarConta: (id: number) => void

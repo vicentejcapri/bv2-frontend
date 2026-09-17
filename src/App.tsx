@@ -1,7 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom"
 import { AppLayout } from "@/components/layout/AppLayout"
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute"
-import { SomenteMaster } from "@/components/layout/SomenteMaster"
+import { RotaPermitida } from "@/components/layout/RotaPermitida"
 import { LoginPage } from "@/pages/LoginPage"
 import { EsqueciSenhaPage } from "@/pages/EsqueciSenhaPage"
 import { RedefinirSenhaPage } from "@/pages/RedefinirSenhaPage"
@@ -27,14 +27,16 @@ export default function App() {
       {/* Rotas privadas: só entram quem está logado */}
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
-          <Route index element={<Navigate to="/dashboard" replace />} />
-          <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/os" element={<OrdensServicoPage />} />
-          <Route path="/clientes" element={<ClientesPage />} />
-          <Route path="/equipamentos" element={<EquipamentosPage />} />
-          <Route path="/servicos" element={<ServicosPage />} />
-          <Route path="/notificacoes" element={<NotificacoesPage />} />
-          <Route element={<SomenteMaster />}>
+          {/* As telas restritas (Notificações, Usuários) são barradas pela mesma
+              regra que as esconde do menu — ver config/menu.ts. */}
+          <Route element={<RotaPermitida />}>
+            <Route index element={<Navigate to="/dashboard" replace />} />
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/os" element={<OrdensServicoPage />} />
+            <Route path="/clientes" element={<ClientesPage />} />
+            <Route path="/equipamentos" element={<EquipamentosPage />} />
+            <Route path="/servicos" element={<ServicosPage />} />
+            <Route path="/notificacoes" element={<NotificacoesPage />} />
             <Route path="/usuarios" element={<UsuariosPage />} />
           </Route>
         </Route>
