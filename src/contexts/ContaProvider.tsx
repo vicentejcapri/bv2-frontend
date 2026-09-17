@@ -65,6 +65,12 @@ export function ContaProvider({ children }: { children: ReactNode }) {
   // do provider, e a primeira busca delas já precisa sair com o header certo.
   definirContaAtiva(contaId)
 
+  // Sem contaId (ADMIN, ou MASTER ainda carregando) a conta é a do próprio usuário.
+  const emailConta =
+    (contaId !== null ? contas?.find((conta) => conta.id === contaId)?.email : usuario?.email) ??
+    usuario?.email ??
+    null
+
   const pronto = !token || (usuario !== null && (!isMaster || contas !== null))
 
   const trocarConta = useCallback((id: number) => {
@@ -84,11 +90,12 @@ export function ContaProvider({ children }: { children: ReactNode }) {
       isMaster,
       contaId,
       contas: contas ?? [],
+      emailConta,
       pronto,
       trocarConta,
       recarregarContas,
     }),
-    [isMaster, contaId, contas, pronto, trocarConta, recarregarContas]
+    [isMaster, contaId, contas, emailConta, pronto, trocarConta, recarregarContas]
   )
 
   return <ContaContext.Provider value={value}>{children}</ContaContext.Provider>
