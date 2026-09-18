@@ -94,8 +94,10 @@ export function ExcluirDialog({
           <DialogDescription>
             {nome && (
               <>
+                {/* Frase sem gênero: o mesmo diálogo serve cliente, serviço, ordem… */}
+                Isso remove{" "}
                 <strong className="font-medium text-foreground">{nome}</strong>{" "}
-                será removido definitivamente. Essa ação não pode ser desfeita.
+                definitivamente. Essa ação não pode ser desfeita.
               </>
             )}
           </DialogDescription>

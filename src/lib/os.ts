@@ -1,7 +1,8 @@
 /**
- * 1042 -> "Nº 1042". "OS" é abreviação nossa; na tela o usuário lê sempre
- * "ordem de serviço", então o prefixo não aparece.
+ * Número da ordem como aparece na tela: o id, sem prefixo. Onde ele entra numa
+ * frase, quem escreve a frase põe a palavra ("ordem 1042"). "OS" é abreviação
+ * nossa; o usuário lê sempre "ordem de serviço".
  */
 export function numeroOS(id: number) {
-  return `Nº ${id}`
+  return String(id)
 }

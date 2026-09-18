@@ -32,6 +32,11 @@ export type OrdemServicoCriacao = {
   dataEntrada: string
   observacao: string | null
   itens: { equipamentoId: number; servicoId: number; observacao?: string | null }[]
+  /**
+   * Enviado, o total nasce fixado à mão e para de acompanhar os itens. Omitido,
+   * nasce automático: a soma dos serviços lançados.
+   */
+  valorTotal?: number
 }
 
 /**
@@ -80,6 +85,15 @@ export function alterarStatusOrdem(
     method: "PATCH",
     token,
   })
+}
+
+/**
+ * 204. Exclusão definitiva: leva junto os itens e o log de notificações da ordem.
+ * Só EM_ANDAMENTO ou CANCELADA — concluída e entregue respondem 422, porque
+ * entram no faturamento.
+ */
+export function excluirOrdem(token: string, id: number) {
+  return apiFetch(`/ordens-servico/${id}`, { method: "DELETE", token })
 }
 
 /**
