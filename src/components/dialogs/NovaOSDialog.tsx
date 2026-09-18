@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
 import type { FormEvent } from "react"
-import { Loader2, Plus, Trash2 } from "lucide-react"
+import { Loader2, Pencil, Plus, Trash2 } from "lucide-react"
 
 import { AuthAlert } from "@/components/layout/AuthShell"
 import { Button } from "@/components/ui/button"
@@ -32,16 +32,21 @@ import type { Cliente } from "@/lib/cliente-api"
 import { listarEquipamentos } from "@/lib/equipamento-api"
 import type { Equipamento } from "@/lib/equipamento-api"
 import { fieldProps } from "@/lib/form"
-import { formatBRL, hojeISO } from "@/lib/format"
+import { formatBRL, hojeISO, maskMoeda, parseMoeda } from "@/lib/format"
 import { criarOrdem } from "@/lib/os-api"
 import type { OrdemServico } from "@/lib/os-api"
 import { listarServicos } from "@/lib/servico-api"
 import type { Servico } from "@/lib/servico-api"
 
 type Item = { equipamentoId: string; servicoId: string }
-type Erros = Partial<Record<"clienteId" | "dataEntrada" | "itens" | "geral", string>>
+type Erros = Partial<
+  Record<"clienteId" | "dataEntrada" | "itens" | "valorTotal" | "geral", string>
+>
 
 const ITEM_VAZIO: Item = { equipamentoId: "", servicoId: "" }
+
+/** Valor máximo aceito pelo backend: 7 inteiros e 2 decimais. */
+const VALOR_MAXIMO = 9_999_999.99
 
 export function NovaOSDialog({
   open,
@@ -124,6 +129,19 @@ function NovaOSForm({ onCriada }: { onCriada: (ordem: OrdemServico) => void }) {
     [itens, servicos]
   )
 
+  /** Null = automático (soma dos itens). Texto = total fixado à mão, já mascarado. */
+  const [valorManual, setValorManual] = useState<string | null>(null)
+
+  const fixarValor = () => {
+    setValorManual(maskMoeda(String(Math.round(total * 100))))
+    setErros((atuais) => ({ ...atuais, valorTotal: undefined }))
+  }
+
+  const voltarAoAutomatico = () => {
+    setValorManual(null)
+    setErros((atuais) => ({ ...atuais, valorTotal: undefined }))
+  }
+
   const alterarItem = (indice: number, mudanca: Partial<Item>) => {
     setItens((atuais) =>
       atuais.map((item, i) => (i === indice ? { ...item, ...mudanca } : item))
@@ -151,6 +169,14 @@ function NovaOSForm({ onCriada }: { onCriada: (ordem: OrdemServico) => void }) {
         : dataEntrada > hojeISO()
           ? "A data de entrada não pode ser futura."
           : undefined,
+      valorTotal:
+        valorManual === null
+          ? undefined
+          : !valorManual
+            ? "Informe o valor total ou volte ao automático."
+            : parseMoeda(valorManual) > VALOR_MAXIMO
+              ? "O valor máximo é R$ 9.999.999,99."
+              : undefined,
       itens:
         preenchidos.length === 0
           ? "Lance ao menos um serviço para um equipamento."
@@ -174,6 +200,8 @@ function NovaOSForm({ onCriada }: { onCriada: (ordem: OrdemServico) => void }) {
             equipamentoId: Number(i.equipamentoId),
             servicoId: Number(i.servicoId),
           })),
+          // Omitido, o backend soma os serviços dos itens.
+          ...(valorManual !== null ? { valorTotal: parseMoeda(valorManual) } : {}),
         })
       )
     } catch (error) {
@@ -344,9 +372,62 @@ function NovaOSForm({ onCriada }: { onCriada: (ordem: OrdemServico) => void }) {
             <p className="text-xs font-medium text-destructive">{erros.itens}</p>
           )}
 
-          <div className="flex items-baseline justify-between border-t border-border pt-2 text-sm">
-            <span className="text-muted-foreground">Valor total</span>
-            <strong className="tabular-nums">{formatBRL(total)}</strong>
+          <div className="space-y-1.5 border-t border-border pt-2 text-sm">
+            {valorManual === null ? (
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-muted-foreground">Valor total</span>
+                <div className="flex items-center gap-1">
+                  <strong className="tabular-nums">{formatBRL(total)}</strong>
+                  <Button type="button" variant="ghost" size="icon-xs" onClick={fixarValor}>
+                    <Pencil />
+                    <span className="sr-only">Definir o valor total à mão</span>
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center justify-between gap-3">
+                  <label htmlFor="os-valor-total" className="text-muted-foreground">
+                    Valor total <span className="text-xs">(fixado à mão)</span>
+                  </label>
+                  <div className="relative w-40">
+                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                      R$
+                    </span>
+                    <Input
+                      id="os-valor-total"
+                      value={valorManual}
+                      onChange={(event) => {
+                        setValorManual(maskMoeda(event.target.value))
+                        setErros((atuais) => ({ ...atuais, valorTotal: undefined }))
+                      }}
+                      inputMode="numeric"
+                      placeholder="0,00"
+                      aria-invalid={erros.valorTotal ? true : undefined}
+                      className="pl-10 text-right font-medium"
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-xs text-muted-foreground">
+                    Soma dos serviços: {formatBRL(total)} — o valor fixado não muda ao
+                    adicionar ou remover itens.
+                  </span>
+                  <Button
+                    type="button"
+                    variant="link"
+                    size="xs"
+                    className="h-auto shrink-0 px-0"
+                    onClick={voltarAoAutomatico}
+                  >
+                    Voltar ao automático
+                  </Button>
+                </div>
+              </>
+            )}
+            {erros.valorTotal && (
+              <p className="text-xs font-medium text-destructive">{erros.valorTotal}</p>
+            )}
           </div>
         </div>
 

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
-import { CheckCircle2, Info, Loader2, Plus, X } from "lucide-react"
+import { CheckCircle2, Info, Loader2, Plus, Trash2, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardFlush, CardFooter } from "@/components/ui/card"
@@ -22,6 +22,7 @@ import { DataToolbar, EmptyState } from "@/components/DataToolbar"
 import { Initials } from "@/components/Initials"
 import { PageHeader } from "@/components/PageHeader"
 import { DetalhesOSDialog } from "@/components/dialogs/DetalhesOSDialog"
+import { ExcluirDialog } from "@/components/dialogs/ExcluirDialog"
 import { NovaOSDialog } from "@/components/dialogs/NovaOSDialog"
 import { StatusOSSelect } from "@/components/StatusOSSelect"
 import { useAuth } from "@/hooks/useAuth"
@@ -29,7 +30,7 @@ import { useFeedback } from "@/hooks/useFeedback"
 import { ApiError } from "@/lib/api"
 import { formatBRL, formatDataBR, normalizar } from "@/lib/format"
 import { numeroOS } from "@/lib/os"
-import { alterarStatusOrdem, listarOrdens } from "@/lib/os-api"
+import { alterarStatusOrdem, excluirOrdem, listarOrdens } from "@/lib/os-api"
 import type { OrdemServico, StatusOs } from "@/lib/os-api"
 import { OS_LOOK } from "@/components/StatusBadge"
 
@@ -45,6 +46,9 @@ export function OrdensServicoPage() {
   // A OS fica guardada depois de fechar para o modal não esvaziar na animação de saída.
   const [detalhe, setDetalhe] = useState<OrdemServico | null>(null)
   const [detalheAberto, setDetalheAberto] = useState(false)
+  // A OS em exclusão fica guardada depois de fechar, para o texto não sumir na animação.
+  const [excluindo, setExcluindo] = useState<OrdemServico | null>(null)
+  const [excluirAberto, setExcluirAberto] = useState(false)
 
   const [criando, setCriando] = useState(false)
   const [busca, setBusca] = useState("")
@@ -91,7 +95,7 @@ export function OrdensServicoPage() {
       setOrdens((atuais) =>
         atuais?.map((o) => (o.id === atualizada.id ? atualizada : o)) ?? null
       )
-      setAviso(`${numeroOS(ordem.id)} · ${OS_LOOK[destino].label}`)
+      setAviso(`Ordem ${numeroOS(ordem.id)} · ${OS_LOOK[destino].label.toLowerCase()}`)
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) return logout()
       falha({
@@ -215,7 +219,7 @@ export function OrdensServicoPage() {
                     <TableCell>
                       <StatusOSSelect
                         status={os.status}
-                        rotulo={`${numeroOS(os.id)} de ${os.cliente.nome}`}
+                        rotulo={`ordem ${numeroOS(os.id)} de ${os.cliente.nome}`}
                         salvando={salvando === os.id}
                         onSelecionar={(destino) => alterarStatus(os, destino)}
                       />
@@ -230,17 +234,37 @@ export function OrdensServicoPage() {
                     </TableCell>
 
                     <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="icon-xs"
-                        onClick={() => verDetalhes(os)}
-                        className="transition-opacity focus-visible:opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
-                      >
-                        <Info />
-                        <span className="sr-only">
-                          Ver detalhes de {numeroOS(os.id)}
-                        </span>
-                      </Button>
+                      <div className="flex items-center justify-end gap-0.5">
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          onClick={() => verDetalhes(os)}
+                          className="transition-opacity focus-visible:opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
+                        >
+                          <Info />
+                          <span className="sr-only">
+                            Ver detalhes da ordem {numeroOS(os.id)}
+                          </span>
+                        </Button>
+                        {/* Concluída e entregue entram no faturamento: só o backend
+                            recusaria, mas o botão nem aparece para elas. */}
+                        {(os.status === "EM_ANDAMENTO" || os.status === "CANCELADA") && (
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            onClick={() => {
+                              setExcluindo(os)
+                              setExcluirAberto(true)
+                            }}
+                            className="text-destructive transition-opacity hover:bg-destructive-soft focus-visible:opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
+                          >
+                            <Trash2 />
+                            <span className="sr-only">
+                              Excluir a ordem {numeroOS(os.id)}
+                            </span>
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -261,7 +285,7 @@ export function OrdensServicoPage() {
         onOpenChange={setCriando}
         onCriada={(nova) => {
           setOrdens((atuais) => [nova, ...(atuais ?? [])])
-          setAviso(`${numeroOS(nova.id)} · aberta`)
+          setAviso(`Ordem ${numeroOS(nova.id)} · aberta`)
         }}
       />
 
@@ -277,13 +301,37 @@ export function OrdensServicoPage() {
         }}
       />
 
-      <AvisoStatus mensagem={aviso} onFechar={() => setAviso(null)} />
+      <ExcluirDialog
+        open={excluirAberto}
+        onOpenChange={setExcluirAberto}
+        titulo="Excluir ordem de serviço"
+        nome={excluindo ? `Ordem ${numeroOS(excluindo.id)} de ${excluindo.cliente.nome}` : undefined}
+        detalhe={
+          <p className="rounded-lg bg-destructive-soft px-3 py-2.5 text-sm text-destructive-soft-foreground">
+            Os <strong className="font-medium">itens lançados</strong> e o{" "}
+            <strong className="font-medium">histórico de notificações</strong> desta ordem
+            vão junto. Para tirar a ordem de circulação sem perder o histórico, cancele-a.
+          </p>
+        }
+        mensagemConflito="Esta ordem de serviço tem vínculos que impedem a exclusão."
+        excluir={(token) =>
+          excluindo ? excluirOrdem(token, excluindo.id) : Promise.resolve()
+        }
+        onExcluido={() => {
+          if (!excluindo) return
+          const { id } = excluindo
+          setOrdens((atuais) => atuais?.filter((os) => os.id !== id) ?? null)
+          setAviso(`Ordem ${numeroOS(id)} · excluída`)
+        }}
+      />
+
+      <AvisoRapido mensagem={aviso} onFechar={() => setAviso(null)} />
     </>
   )
 }
 
-/** Confirmação discreta da troca de status, no canto inferior direito. */
-function AvisoStatus({
+/** Confirmação discreta da última ação, no canto inferior direito. */
+function AvisoRapido({
   mensagem,
   onFechar,
 }: {
@@ -304,9 +352,7 @@ function AvisoStatus({
       className="fixed bottom-5 right-5 z-50 flex animate-fade-up items-center gap-2.5 rounded-lg bg-success-soft px-4 py-3 text-sm text-success-soft-foreground shadow-overlay"
     >
       <CheckCircle2 className="size-4 shrink-0" aria-hidden />
-      <span>
-        Status atualizado — <strong className="font-medium">{mensagem}</strong>
-      </span>
+      <strong className="font-medium">{mensagem}</strong>
       <button
         type="button"
         onClick={onFechar}
