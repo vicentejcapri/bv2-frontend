@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import type { FormEvent, KeyboardEvent } from "react"
-import { Loader2, Plus, X } from "lucide-react"
+import { Loader2, X } from "lucide-react"
 
 import { AuthAlert } from "@/components/layout/AuthShell"
 import { Button } from "@/components/ui/button"
@@ -20,10 +20,10 @@ import {
   Select,
   SelectContent,
   SelectItem,
-  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { CRIAR, CriarItem } from "./CriarItem"
 import { Field } from "./Field"
 import { useAuth } from "@/hooks/useAuth"
 import { ApiError } from "@/lib/api"
@@ -37,8 +37,8 @@ import type { Marca } from "@/lib/marca-api"
 
 type Erros = Partial<Record<"clienteId" | "marcaId" | "nome" | "geral", string>>
 
-/** Valor do item "Criar nova marca" no select — nunca é um id real. */
-const NOVA_MARCA = "__nova__"
+/** Dono já decidido por quem abriu o modal (o cliente da OS, por exemplo). */
+type ClienteFixo = { id: number; nome: string }
 
 /**
  * Cadastro e edição do equipamento: com `equipamento` edita (PUT, só marca e
@@ -48,11 +48,14 @@ export function EquipamentoDialog({
   open,
   onOpenChange,
   equipamento,
+  clienteFixo,
   onSalvo,
 }: {
   open: boolean
   onOpenChange: (aberto: boolean) => void
   equipamento?: Equipamento
+  /** No cadastro, fixa o dono em vez de perguntar por ele. */
+  clienteFixo?: ClienteFixo
   onSalvo: (equipamento: Equipamento, criado: boolean) => void
 }) {
   return (
@@ -61,6 +64,7 @@ export function EquipamentoDialog({
         {/* O conteúdo desmonta ao fechar, então cada abertura começa limpa. */}
         <EquipamentoForm
           equipamento={equipamento}
+          clienteFixo={clienteFixo}
           onSalvo={(salvo) => {
             onSalvo(salvo, !equipamento)
             onOpenChange(false)
@@ -73,19 +77,24 @@ export function EquipamentoDialog({
 
 function EquipamentoForm({
   equipamento,
+  clienteFixo,
   onSalvo,
 }: {
   equipamento?: Equipamento
+  clienteFixo?: ClienteFixo
   onSalvo: (equipamento: Equipamento) => void
 }) {
   const { token, logout } = useAuth()
   const editando = !!equipamento
+  /** Dono imutável: o da edição ou o que veio pronto de quem abriu o modal. */
+  const dono = equipamento?.cliente ?? clienteFixo
+  const temDono = !!dono
 
   const [clientes, setClientes] = useState<Cliente[] | null>(null)
   const [marcas, setMarcas] = useState<Marca[] | null>(null)
   const [erroCarga, setErroCarga] = useState<string | null>(null)
 
-  const [clienteId, setClienteId] = useState(equipamento ? String(equipamento.cliente.id) : "")
+  const [clienteId, setClienteId] = useState(dono ? String(dono.id) : "")
   const [marcaId, setMarcaId] = useState(equipamento ? String(equipamento.marca.id) : "")
   const [nome, setNome] = useState(equipamento?.nome ?? "")
   const [erros, setErros] = useState<Erros>({})
@@ -100,9 +109,9 @@ function EquipamentoForm({
     if (!token) return
     let cancelado = false
 
-    // Na edição o dono não muda, então só as marcas interessam.
+    // Com o dono decidido não há o que escolher: só as marcas interessam.
     Promise.all([
-      editando ? Promise.resolve(null) : listarClientes(token),
+      temDono ? Promise.resolve(null) : listarClientes(token),
       listarMarcas(token),
     ])
       .then(([paginaClientes, paginaMarcas]) => {
@@ -124,7 +133,7 @@ function EquipamentoForm({
     return () => {
       cancelado = true
     }
-  }, [token, logout, editando])
+  }, [token, logout, temDono])
 
   const tratarErro = (error: unknown, campo: keyof Erros = "geral"): Erros => {
     if (error instanceof ApiError && error.status === 401) {
@@ -245,7 +254,9 @@ function EquipamentoForm({
         <DialogDescription>
           {editando
             ? "O dono não pode ser trocado: o histórico de ordens de serviço é do equipamento."
-            : "Cada equipamento fica vinculado a um cliente e pode ser usado em várias ordens de serviço."}
+            : clienteFixo
+              ? `O equipamento nasce vinculado a ${clienteFixo.nome} e já fica disponível para a ordem de serviço.`
+              : "Cada equipamento fica vinculado a um cliente e pode ser usado em várias ordens de serviço."}
         </DialogDescription>
       </DialogHeader>
 
@@ -300,7 +311,7 @@ function EquipamentoForm({
             <Select
               value={marcaId}
               onValueChange={(valor) => {
-                if (valor === NOVA_MARCA) return setCriandoMarca(true)
+                if (valor === CRIAR) return setCriandoMarca(true)
                 setMarcaId(valor)
                 setErros((atuais) => ({ ...atuais, marcaId: undefined }))
               }}
@@ -319,11 +330,9 @@ function EquipamentoForm({
                     {marca.nome}
                   </SelectItem>
                 ))}
-                {marcas && marcas.length > 0 && <SelectSeparator />}
-                <SelectItem value={NOVA_MARCA}>
-                  <Plus className="size-3.5" aria-hidden />
+                <CriarItem separador={(marcas?.length ?? 0) > 0}>
                   Criar nova marca
-                </SelectItem>
+                </CriarItem>
               </SelectContent>
             </Select>
           )}
@@ -332,18 +341,18 @@ function EquipamentoForm({
         <Field
           id="equip-cliente"
           label="Dono"
-          required={!editando}
+          required={!dono}
           error={erros.clienteId}
           hint={
-            editando
+            dono
               ? undefined
               : clientes?.length === 0
                 ? "Nenhum cliente ativo. Cadastre ou ative um cliente primeiro."
                 : "Só aparecem clientes ativos."
           }
         >
-          {equipamento ? (
-            <Input id="equip-cliente" value={equipamento.cliente.nome} disabled />
+          {dono ? (
+            <Input id="equip-cliente" value={dono.nome} disabled />
           ) : (
             <Select
               value={clienteId}
