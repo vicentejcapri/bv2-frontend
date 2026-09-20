@@ -106,7 +106,7 @@ export function EquipamentosPage() {
 
       <Card className="overflow-hidden">
         <DataToolbar
-          placeholder="Buscar por equipamento, marca ou dono…"
+          placeholder="Buscar por equipamento, marca ou cliente…"
           busca={busca}
           onBuscaChange={setBusca}
         />
@@ -148,7 +148,7 @@ export function EquipamentosPage() {
                 <TableRow className="hover:bg-transparent">
                   <TableHead>Equipamento</TableHead>
                   <TableHead>Marca</TableHead>
-                  <TableHead>Dono</TableHead>
+                  <TableHead>Cliente</TableHead>
                   <TableHead className="w-12" />
                 </TableRow>
               </TableHeader>
