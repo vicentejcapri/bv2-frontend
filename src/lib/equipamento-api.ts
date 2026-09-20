@@ -10,7 +10,7 @@ export type Equipamento = {
   marca: Marca
 }
 
-/** O dono não muda depois de criado: o PUT só aceita marca e nome. */
+/** O cliente não muda depois de criado: o PUT só aceita marca e nome. */
 export type EquipamentoAtualizacao = { marcaId: number; nome: string }
 export type EquipamentoCriacao = EquipamentoAtualizacao & { clienteId: number }
 
