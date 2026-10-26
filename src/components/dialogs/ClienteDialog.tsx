@@ -1,6 +1,6 @@
 import { useState } from "react"
 import type { FormEvent } from "react"
-import { Loader2 } from "lucide-react"
+import { Loader2, TriangleAlert } from "lucide-react"
 
 import { AuthAlert } from "@/components/layout/AuthShell"
 import { Button } from "@/components/ui/button"
@@ -19,10 +19,14 @@ import { Input } from "@/components/ui/input"
 import { Field } from "./Field"
 import { useAuth } from "@/hooks/useAuth"
 import { ApiError } from "@/lib/api"
-import { atualizarCliente, criarCliente } from "@/lib/cliente-api"
-import type { Cliente } from "@/lib/cliente-api"
+import {
+  atualizarCliente,
+  buscarPossiveisDuplicados,
+  criarCliente,
+} from "@/lib/cliente-api"
+import type { Cliente, ClienteInput } from "@/lib/cliente-api"
 import { fieldProps } from "@/lib/form"
-import { maskTelefone } from "@/lib/format"
+import { formatDataBR, maskTelefone } from "@/lib/format"
 
 type Erros = Partial<Record<"nome" | "telefone" | "geral", string>>
 
@@ -69,6 +73,33 @@ function ClienteForm({
   const [telefone, setTelefone] = useState(maskTelefone(cliente?.telefone ?? ""))
   const [erros, setErros] = useState<Erros>({})
   const [enviando, setEnviando] = useState(false)
+  // Cliente(s) com o mesmo nome e telefone: o formulário pausa e pede confirmação.
+  const [duplicados, setDuplicados] = useState<Cliente[] | null>(null)
+
+  const salvar = async (body: ClienteInput) => {
+    if (!token) return
+    setEnviando(true)
+    try {
+      onSalvo(
+        cliente
+          ? await atualizarCliente(token, cliente.id, body)
+          : await criarCliente(token, body)
+      )
+    } catch (error) {
+      setEnviando(false)
+      setDuplicados(null)
+      if (error instanceof ApiError && error.status === 401) return logout()
+      if (error instanceof ApiError && error.status === 400 && error.erros) {
+        return setErros({ ...error.erros })
+      }
+      setErros({
+        geral:
+          error instanceof ApiError
+            ? error.message
+            : "Algo deu errado. Tente novamente.",
+      })
+    }
+  }
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault()
@@ -89,27 +120,29 @@ function ClienteForm({
     setErros(locais)
     if (Object.values(locais).some(Boolean)) return
 
-    setEnviando(true)
-    try {
-      const body = { nome: limpo, telefone: digitos }
-      onSalvo(
-        cliente
-          ? await atualizarCliente(token, cliente.id, body)
-          : await criarCliente(token, body)
-      )
-    } catch (error) {
-      setEnviando(false)
-      if (error instanceof ApiError && error.status === 401) return logout()
-      if (error instanceof ApiError && error.status === 400 && error.erros) {
-        return setErros({ ...error.erros })
+    const body = { nome: limpo, telefone: digitos }
+
+    // Na edição sem mudar nome nem telefone não há o que avisar de novo.
+    const mudouIdentidade =
+      !cliente ||
+      cliente.nome.toLowerCase() !== limpo.toLowerCase() ||
+      cliente.telefone !== digitos
+
+    if (mudouIdentidade) {
+      setEnviando(true)
+      try {
+        const parecidos = await buscarPossiveisDuplicados(token, body, cliente?.id)
+        if (parecidos.length > 0) {
+          setEnviando(false)
+          return setDuplicados(parecidos)
+        }
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 401) return logout()
+        // O aviso é uma ajuda, não uma trava: se a checagem falhar, segue salvando.
       }
-      setErros({
-        geral:
-          error instanceof ApiError
-            ? error.message
-            : "Algo deu errado. Tente novamente.",
-      })
     }
+
+    await salvar(body)
   }
 
   return (
@@ -127,7 +160,10 @@ function ClienteForm({
             {...fieldProps("cliente-nome", erros.nome)}
             value={nome}
             maxLength={50}
-            onChange={(event) => setNome(event.target.value)}
+            onChange={(event) => {
+              setNome(event.target.value)
+              setDuplicados(null)
+            }}
             placeholder="Oficina do Beto"
             autoFocus
           />
@@ -142,25 +178,74 @@ function ClienteForm({
           <Input
             {...fieldProps("cliente-telefone", erros.telefone)}
             value={telefone}
-            onChange={(event) => setTelefone(maskTelefone(event.target.value))}
+            onChange={(event) => {
+              setTelefone(maskTelefone(event.target.value))
+              setDuplicados(null)
+            }}
             inputMode="tel"
             placeholder="(42) 99999-1111"
           />
         </Field>
 
         {erros.geral && <AuthAlert tom="erro">{erros.geral}</AuthAlert>}
+
+        {duplicados && (
+          <div
+            role="alert"
+            className="space-y-2 rounded-lg bg-warning-soft px-3 py-2.5 text-sm text-warning-soft-foreground"
+          >
+            <p className="flex items-center gap-2 font-medium">
+              <TriangleAlert className="size-4 shrink-0" aria-hidden />
+              {duplicados.length === 1
+                ? "Já existe um cliente com este nome e telefone:"
+                : "Já existem clientes com este nome e telefone:"}
+            </p>
+            <ul className="space-y-0.5 pl-6">
+              {duplicados.map((d) => (
+                <li key={d.id}>
+                  <strong className="font-medium">{d.nome}</strong> —{" "}
+                  {maskTelefone(d.telefone)}, cadastrado em{" "}
+                  {formatDataBR(d.criadoEm.slice(0, 10))}
+                  {!d.ativo && " (inativo)"}
+                </li>
+              ))}
+            </ul>
+            <p>Confira se não é a mesma pessoa antes de continuar.</p>
+          </div>
+        )}
       </DialogBody>
 
       <DialogFooter>
-        <DialogClose asChild>
-          <Button type="button" variant="outline">
-            Cancelar
-          </Button>
-        </DialogClose>
-        <Button type="submit" disabled={enviando} aria-busy={enviando}>
-          {enviando && <Loader2 className="animate-spin" aria-hidden />}
-          {cliente ? "Salvar alterações" : "Cadastrar cliente"}
-        </Button>
+        {duplicados ? (
+          <>
+            <Button type="button" variant="outline" onClick={() => setDuplicados(null)}>
+              Voltar
+            </Button>
+            <Button
+              type="button"
+              disabled={enviando}
+              aria-busy={enviando}
+              onClick={() =>
+                salvar({ nome: nome.trim(), telefone: telefone.replace(/\D/g, "") })
+              }
+            >
+              {enviando && <Loader2 className="animate-spin" aria-hidden />}
+              {cliente ? "Salvar mesmo assim" : "Cadastrar mesmo assim"}
+            </Button>
+          </>
+        ) : (
+          <>
+            <DialogClose asChild>
+              <Button type="button" variant="outline">
+                Cancelar
+              </Button>
+            </DialogClose>
+            <Button type="submit" disabled={enviando} aria-busy={enviando}>
+              {enviando && <Loader2 className="animate-spin" aria-hidden />}
+              {cliente ? "Salvar alterações" : "Cadastrar cliente"}
+            </Button>
+          </>
+        )}
       </DialogFooter>
     </DialogForm>
   )

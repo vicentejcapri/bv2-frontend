@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useState } from "react"
 import { CheckCircle2, Info, Loader2, Plus, Trash2, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { Card, CardFlush, CardFooter } from "@/components/ui/card"
+import { Card, CardFlush } from "@/components/ui/card"
 import {
   Select,
   SelectContent,
@@ -21,25 +21,37 @@ import {
 import { DataToolbar, EmptyState } from "@/components/DataToolbar"
 import { Initials } from "@/components/Initials"
 import { PageHeader } from "@/components/PageHeader"
+import { Paginacao } from "@/components/Paginacao"
 import { DetalhesOSDialog } from "@/components/dialogs/DetalhesOSDialog"
 import { ExcluirDialog } from "@/components/dialogs/ExcluirDialog"
 import { NovaOSDialog } from "@/components/dialogs/NovaOSDialog"
 import { StatusOSSelect } from "@/components/StatusOSSelect"
 import { useAuth } from "@/hooks/useAuth"
 import { useFeedback } from "@/hooks/useFeedback"
+import { useListagem } from "@/hooks/useListagem"
 import { ApiError } from "@/lib/api"
-import { formatBRL, formatDataBR, normalizar } from "@/lib/format"
+import { formatBRL, formatDataBR } from "@/lib/format"
 import { numeroOS } from "@/lib/os"
-import { alterarStatusOrdem, excluirOrdem, listarOrdens } from "@/lib/os-api"
+import {
+  STATUS_EM_ABERTO,
+  alterarStatusOrdem,
+  excluirOrdem,
+  listarOrdens,
+} from "@/lib/os-api"
 import type { OrdemServico, StatusOs } from "@/lib/os-api"
 import { OS_LOOK } from "@/components/StatusBadge"
+
+/** "Em aberto" junta dois status numa consulta só; "TODOS" não filtra. */
+type FiltroStatus = "EM_ABERTO" | "TODOS" | StatusOs
+
+function statusDoFiltro(filtro: FiltroStatus): StatusOs[] | undefined {
+  if (filtro === "TODOS") return undefined
+  return filtro === "EM_ABERTO" ? STATUS_EM_ABERTO : [filtro]
+}
 
 export function OrdensServicoPage() {
   const { token, logout } = useAuth()
   const { falha } = useFeedback()
-  const [ordens, setOrdens] = useState<OrdemServico[] | null>(null)
-  const [erro, setErro] = useState<string | null>(null)
-  const [tentativa, setTentativa] = useState(0)
   /** Id da OS com PATCH em voo — trava só aquele seletor. */
   const [salvando, setSalvando] = useState<number | null>(null)
   const [aviso, setAviso] = useState<string | null>(null)
@@ -51,38 +63,23 @@ export function OrdensServicoPage() {
   const [excluirAberto, setExcluirAberto] = useState(false)
 
   const [criando, setCriando] = useState(false)
-  const [busca, setBusca] = useState("")
-  const [filtroStatus, setFiltroStatus] = useState<string>("TODOS")
+  // Abre só com o que ainda está na oficina: entregues e canceladas só sob pedido.
+  const [filtroStatus, setFiltroStatus] = useState<FiltroStatus>("EM_ABERTO")
+
+  const lista = useListagem(
+    listarOrdens,
+    { status: statusDoFiltro(filtroStatus) },
+    { mensagemErro: "Não foi possível carregar as ordens de serviço." }
+  )
+  const ordens = lista.itens
+  const filtrando = lista.buscando || filtroStatus !== "TODOS"
+  const substituir = (atualizada: OrdemServico) =>
+    lista.substituir(atualizada, (a, b) => a.id === b.id)
 
   const verDetalhes = (ordem: OrdemServico) => {
     setDetalhe(ordem)
     setDetalheAberto(true)
   }
-
-  useEffect(() => {
-    if (!token) return
-    let cancelado = false
-
-    listarOrdens(token)
-      .then((pagina) => {
-        if (cancelado) return
-        setOrdens(pagina.conteudo)
-        setErro(null)
-      })
-      .catch((error) => {
-        if (cancelado) return
-        if (error instanceof ApiError && error.status === 401) return logout()
-        setErro(
-          error instanceof ApiError
-            ? error.message
-            : "Não foi possível carregar as ordens de serviço."
-        )
-      })
-
-    return () => {
-      cancelado = true
-    }
-  }, [token, logout, tentativa])
 
   const alterarStatus = async (
     ordem: OrdemServico,
@@ -92,9 +89,7 @@ export function OrdensServicoPage() {
     setSalvando(ordem.id)
     try {
       const atualizada = await alterarStatusOrdem(token, ordem.id, destino)
-      setOrdens((atuais) =>
-        atuais?.map((o) => (o.id === atualizada.id ? atualizada : o)) ?? null
-      )
+      substituir(atualizada)
       setAviso(`Ordem ${numeroOS(ordem.id)} · ${OS_LOOK[destino].label.toLowerCase()}`)
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) return logout()
@@ -110,15 +105,6 @@ export function OrdensServicoPage() {
       setSalvando(null)
     }
   }
-
-  const visiveis = useMemo(() => {
-    const termo = normalizar(busca.trim())
-    return (ordens ?? []).filter((os) => {
-      if (filtroStatus !== "TODOS" && os.status !== filtroStatus) return false
-      if (!termo) return true
-      return normalizar(os.cliente.nome).includes(termo) || String(os.id).includes(termo)
-    })
-  }, [ordens, busca, filtroStatus])
 
   return (
     <>
@@ -136,14 +122,18 @@ export function OrdensServicoPage() {
       <Card className="overflow-hidden">
         <DataToolbar
           placeholder="Buscar por número da ordem ou cliente…"
-          busca={busca}
-          onBuscaChange={setBusca}
+          busca={lista.busca}
+          onBuscaChange={lista.setBusca}
         >
-          <Select value={filtroStatus} onValueChange={setFiltroStatus}>
+          <Select
+            value={filtroStatus}
+            onValueChange={(valor) => setFiltroStatus(valor as FiltroStatus)}
+          >
             <SelectTrigger className="w-44" aria-label="Filtrar por status">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="EM_ABERTO">Em aberto</SelectItem>
               <SelectItem value="TODOS">Todos os status</SelectItem>
               {Object.entries(OS_LOOK).map(([valor, look]) => (
                 <SelectItem key={valor} value={valor}>
@@ -154,12 +144,12 @@ export function OrdensServicoPage() {
           </Select>
         </DataToolbar>
         <CardFlush className="border-t-0">
-          {erro && !ordens ? (
+          {lista.erro && !ordens ? (
             <EmptyState
               title="Não foi possível carregar as ordens de serviço"
-              description={erro}
+              description={lista.erro}
               action={
-                <Button variant="outline" onClick={() => setTentativa((n) => n + 1)}>
+                <Button variant="outline" onClick={lista.recarregar}>
                   Tentar novamente
                 </Button>
               }
@@ -172,7 +162,7 @@ export function OrdensServicoPage() {
               <Loader2 className="size-4 animate-spin" aria-hidden />
               Carregando ordens de serviço…
             </div>
-          ) : ordens.length === 0 ? (
+          ) : ordens.length === 0 && !filtrando ? (
             <EmptyState
               title="Nenhuma ordem de serviço"
               description="As ordens abertas para os clientes aparecem aqui."
@@ -183,10 +173,14 @@ export function OrdensServicoPage() {
                 </Button>
               }
             />
-          ) : visiveis.length === 0 ? (
+          ) : ordens.length === 0 ? (
             <EmptyState
               title="Nenhuma ordem encontrada"
-              description="Nenhuma ordem de serviço corresponde à busca ou ao filtro."
+              description={
+                filtroStatus === "EM_ABERTO" && !lista.buscando
+                  ? "Nenhuma ordem em aberto. Para ver entregues e canceladas, mude o filtro de status."
+                  : "Nenhuma ordem de serviço corresponde à busca ou ao filtro."
+              }
             />
           ) : (
             <Table>
@@ -201,7 +195,7 @@ export function OrdensServicoPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {visiveis.map((os) => (
+                {ordens.map((os) => (
                   <TableRow key={os.id} className="group">
                     <TableCell className="font-mono text-[0.8125rem] font-medium text-muted-foreground">
                       {numeroOS(os.id)}
@@ -272,11 +266,14 @@ export function OrdensServicoPage() {
             </Table>
           )}
         </CardFlush>
-        {ordens && ordens.length > 0 && (
-          <CardFooter className="text-xs text-muted-foreground">
-            Exibindo <strong className="text-foreground">{visiveis.length}</strong>{" "}
-            de {ordens.length} {ordens.length === 1 ? "ordem" : "ordens"}
-          </CardFooter>
+        {lista.pagina && lista.pagina.totalElementos > 0 && (
+          <Paginacao
+            pagina={lista.pagina}
+            carregando={lista.carregando}
+            onIrPara={lista.irPara}
+            singular="ordem"
+            plural="ordens"
+          />
         )}
       </Card>
 
@@ -284,7 +281,7 @@ export function OrdensServicoPage() {
         open={criando}
         onOpenChange={setCriando}
         onCriada={(nova) => {
-          setOrdens((atuais) => [nova, ...(atuais ?? [])])
+          lista.recarregar()
           setAviso(`Ordem ${numeroOS(nova.id)} · aberta`)
         }}
       />
@@ -295,9 +292,7 @@ export function OrdensServicoPage() {
         ordem={detalhe ?? undefined}
         onAtualizada={(atualizada) => {
           setDetalhe(atualizada)
-          setOrdens((atuais) =>
-            atuais?.map((os) => (os.id === atualizada.id ? atualizada : os)) ?? null
-          )
+          substituir(atualizada)
         }}
       />
 
@@ -320,7 +315,7 @@ export function OrdensServicoPage() {
         onExcluido={() => {
           if (!excluindo) return
           const { id } = excluindo
-          setOrdens((atuais) => atuais?.filter((os) => os.id !== id) ?? null)
+          lista.recarregar()
           setAviso(`Ordem ${numeroOS(id)} · excluída`)
         }}
       />

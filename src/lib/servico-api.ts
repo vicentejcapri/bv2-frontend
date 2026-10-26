@@ -1,5 +1,6 @@
 import { apiFetch } from "@/lib/api"
-import type { Pagina } from "@/lib/api"
+import { montarQuery } from "@/lib/api"
+import type { Pagina, ParamsListagem } from "@/lib/api"
 
 export type Servico = {
   id: number
@@ -15,12 +16,15 @@ export type Servico = {
 /** Corpo do POST e do PUT: a situação muda pelos PATCH /ativar e /desativar. */
 export type ServicoInput = Pick<Servico, "nome" | "descricao" | "valor">
 
-export function listarServicos(token: string) {
-  const query = new URLSearchParams({ size: "1000", sort: "nome,asc" })
+export type FiltrosServico = ParamsListagem & { ativo?: boolean }
+
+/** `busca` casa com parte do nome ou da descrição. */
+export function listarServicos(token: string, filtros: FiltrosServico = {}) {
+  const query = montarQuery({ sort: "nome,asc", ...filtros })
   return apiFetch<Pagina<Servico>>(`/servicos?${query}`, { token })
 }
 
-/** 409 quando já existe serviço com o mesmo nome e o mesmo valor. */
+/** 409 quando já existe serviço com o mesmo nome. */
 export function criarServico(token: string, body: ServicoInput) {
   return apiFetch<Servico>("/servicos", { method: "POST", token, body })
 }

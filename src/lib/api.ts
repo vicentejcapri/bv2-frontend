@@ -26,6 +26,42 @@ export type Pagina<T> = {
   ultima: boolean
 }
 
+/** Paginação e busca livre, comuns a todas as listagens. */
+export type ParamsListagem = {
+  /** Base 0, como o Spring. */
+  page?: number
+  size?: number
+  busca?: string
+}
+
+/** Opções do select "Situação" das listagens. */
+export type Situacao = "TODOS" | "ATIVOS" | "INATIVOS"
+
+/** "TODOS" não filtra: vira `undefined`, que o `montarQuery` pula. */
+export function ativoDaSituacao(situacao: Situacao): boolean | undefined {
+  return situacao === "TODOS" ? undefined : situacao === "ATIVOS"
+}
+
+type ValorQuery = string | number | boolean | readonly string[] | null | undefined
+
+/**
+ * Monta a query string pulando o que veio vazio: filtro "Todos" é `undefined`, e
+ * mandar `?ativo=` faria o Spring tentar converter string vazia. Lista vira o
+ * param repetido (`status=A&status=B`), que é como o Spring lê `List<>`.
+ */
+export function montarQuery(params: Record<string, ValorQuery>) {
+  const query = new URLSearchParams()
+  for (const [chave, valor] of Object.entries(params)) {
+    if (valor === undefined || valor === null || valor === "") continue
+    if (Array.isArray(valor)) {
+      valor.forEach((v) => query.append(chave, v))
+    } else {
+      query.set(chave, String(valor))
+    }
+  }
+  return query.toString()
+}
+
 /**
  * Conta em que o MASTER está operando. Vai no header `X-Conta-Id` de toda chamada;
  * `null` (ADMIN, ou MASTER na própria conta) omite o header e o backend usa a conta

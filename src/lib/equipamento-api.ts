@@ -1,5 +1,6 @@
 import { apiFetch } from "@/lib/api"
-import type { Pagina } from "@/lib/api"
+import { montarQuery } from "@/lib/api"
+import type { Pagina, ParamsListagem } from "@/lib/api"
 import type { Marca } from "@/lib/marca-api"
 
 export type Equipamento = {
@@ -14,8 +15,11 @@ export type Equipamento = {
 export type EquipamentoAtualizacao = { marcaId: number; nome: string }
 export type EquipamentoCriacao = EquipamentoAtualizacao & { clienteId: number }
 
-export function listarEquipamentos(token: string) {
-  const query = new URLSearchParams({ size: "1000", sort: "nome,asc" })
+export type FiltrosEquipamento = ParamsListagem & { clienteId?: number }
+
+/** `busca` casa com parte do nome do equipamento, da marca ou do cliente. */
+export function listarEquipamentos(token: string, filtros: FiltrosEquipamento = {}) {
+  const query = montarQuery({ sort: "nome,asc", ...filtros })
   return apiFetch<Pagina<Equipamento>>(`/equipamentos?${query}`, { token })
 }
 

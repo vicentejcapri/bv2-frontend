@@ -1,5 +1,6 @@
 import { apiFetch } from "@/lib/api"
-import type { Pagina } from "@/lib/api"
+import { montarQuery } from "@/lib/api"
+import type { Pagina, ParamsListagem } from "@/lib/api"
 
 export type RoleUsuario = "MASTER" | "ADMIN"
 
@@ -66,10 +67,11 @@ export function confirmarTrocaEmail(tokenLink: string) {
 // Cadastro de usuários do sistema — só o MASTER (403 para o ADMIN)
 // ------------------------------------------------------------------
 
-/** Uma página grande basta: o sistema tem poucos usuários. */
-export function listarUsuarios(token: string, filtro: { ativo?: boolean } = {}) {
-  const query = new URLSearchParams({ size: "200", sort: "nome,asc" })
-  if (filtro.ativo !== undefined) query.set("ativo", String(filtro.ativo))
+export type FiltrosUsuario = ParamsListagem & { ativo?: boolean }
+
+/** `busca` casa com parte do nome ou do e-mail. */
+export function listarUsuarios(token: string, filtros: FiltrosUsuario = {}) {
+  const query = montarQuery({ sort: "nome,asc", ...filtros })
   return apiFetch<Pagina<Usuario>>(`/usuarios?${query}`, { token })
 }
 

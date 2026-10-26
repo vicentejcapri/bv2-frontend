@@ -56,10 +56,20 @@ export function formatDataBR(iso: string) {
 
 /** Data de hoje no formato aceito por <input type="date">. */
 export function hojeISO() {
-  const hoje = new Date()
-  const mes = String(hoje.getMonth() + 1).padStart(2, "0")
-  const dia = String(hoje.getDate()).padStart(2, "0")
-  return `${hoje.getFullYear()}-${mes}-${dia}`
+  return dataISO(new Date())
+}
+
+/** "AAAA-MM-DD" de N dias atrás, no fuso local — para os filtros de período. */
+export function diasAtrasISO(dias: number) {
+  const data = new Date()
+  data.setDate(data.getDate() - dias)
+  return dataISO(data)
+}
+
+function dataISO(data: Date) {
+  const mes = String(data.getMonth() + 1).padStart(2, "0")
+  const dia = String(data.getDate()).padStart(2, "0")
+  return `${data.getFullYear()}-${mes}-${dia}`
 }
 
 /** Duas primeiras iniciais de um nome ("Oficina do Beto" -> "OB"). */

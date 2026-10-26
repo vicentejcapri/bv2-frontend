@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useState } from "react"
 import { Loader2, Plus, Wrench } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { Card, CardFlush, CardFooter } from "@/components/ui/card"
+import { Card, CardFlush } from "@/components/ui/card"
 import {
   Table,
   TableBody,
@@ -15,11 +15,10 @@ import { AcoesMenu } from "@/components/AcoesMenu"
 import { DataToolbar, EmptyState } from "@/components/DataToolbar"
 import { Initials } from "@/components/Initials"
 import { PageHeader } from "@/components/PageHeader"
+import { Paginacao } from "@/components/Paginacao"
 import { EquipamentoDialog } from "@/components/dialogs/EquipamentoDialog"
 import { ExcluirDialog } from "@/components/dialogs/ExcluirDialog"
-import { useAuth } from "@/hooks/useAuth"
-import { ApiError } from "@/lib/api"
-import { normalizar } from "@/lib/format"
+import { useListagem } from "@/hooks/useListagem"
 import { excluirEquipamento, listarEquipamentos } from "@/lib/equipamento-api"
 import type { Equipamento } from "@/lib/equipamento-api"
 
@@ -30,64 +29,29 @@ type Modal =
   | { tipo: "excluir"; equipamento: Equipamento }
 
 export function EquipamentosPage() {
-  const { token, logout } = useAuth()
-  const [equipamentos, setEquipamentos] = useState<Equipamento[] | null>(null)
-  const [erro, setErro] = useState<string | null>(null)
-  const [tentativa, setTentativa] = useState(0)
   // O modal fica guardado depois de fechar para o conteúdo não mudar na animação de saída.
   const [modal, setModal] = useState<Modal | null>(null)
   const [aberto, setAberto] = useState(false)
-  const [busca, setBusca] = useState("")
+
+  const lista = useListagem(
+    listarEquipamentos,
+    {},
+    { mensagemErro: "Não foi possível carregar os equipamentos." }
+  )
+  const equipamentos = lista.itens
+  const { recarregar, substituir } = lista
 
   const abrir = (proximo: Modal) => {
     setModal(proximo)
     setAberto(true)
   }
 
-  useEffect(() => {
-    if (!token) return
-    let cancelado = false
-
-    listarEquipamentos(token)
-      .then((pagina) => {
-        if (cancelado) return
-        setEquipamentos(pagina.conteudo)
-        setErro(null)
-      })
-      .catch((error) => {
-        if (cancelado) return
-        if (error instanceof ApiError && error.status === 401) return logout()
-        setErro(
-          error instanceof ApiError
-            ? error.message
-            : "Não foi possível carregar os equipamentos."
-        )
-      })
-
-    return () => {
-      cancelado = true
-    }
-  }, [token, logout, tentativa])
-
-  const aoSalvar = useCallback((salvo: Equipamento, criado: boolean) => {
-    setEquipamentos((atuais) => {
-      const lista = criado
-        ? [...(atuais ?? []), salvo]
-        : (atuais ?? []).map((e) => (e.id === salvo.id ? salvo : e))
-      return lista.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
-    })
-  }, [])
-
-  const visiveis = useMemo(() => {
-    const termo = normalizar(busca.trim())
-    if (!termo) return equipamentos ?? []
-    return (equipamentos ?? []).filter(
-      (eq) =>
-        normalizar(eq.nome).includes(termo) ||
-        normalizar(eq.marca.nome).includes(termo) ||
-        normalizar(eq.cliente.nome).includes(termo)
-    )
-  }, [equipamentos, busca])
+  // Cadastro novo pode cair em qualquer página da ordenação: recarrega do servidor.
+  const aoSalvar = useCallback(
+    (salvo: Equipamento, criado: boolean) =>
+      criado ? recarregar() : substituir(salvo, (a, b) => a.id === b.id),
+    [recarregar, substituir]
+  )
 
   const botaoNovo = (
     <Button variant="accent" onClick={() => abrir({ tipo: "novo" })}>
@@ -107,16 +71,16 @@ export function EquipamentosPage() {
       <Card className="overflow-hidden">
         <DataToolbar
           placeholder="Buscar por equipamento, marca ou cliente…"
-          busca={busca}
-          onBuscaChange={setBusca}
+          busca={lista.busca}
+          onBuscaChange={lista.setBusca}
         />
         <CardFlush className="border-t-0">
-          {erro && !equipamentos ? (
+          {lista.erro && !equipamentos ? (
             <EmptyState
               title="Não foi possível carregar os equipamentos"
-              description={erro}
+              description={lista.erro}
               action={
-                <Button variant="outline" onClick={() => setTentativa((n) => n + 1)}>
+                <Button variant="outline" onClick={lista.recarregar}>
                   Tentar novamente
                 </Button>
               }
@@ -129,8 +93,8 @@ export function EquipamentosPage() {
               <Loader2 className="size-4 animate-spin" aria-hidden />
               Carregando equipamentos…
             </div>
-          ) : visiveis.length === 0 ? (
-            equipamentos.length === 0 ? (
+          ) : equipamentos.length === 0 ? (
+            !lista.buscando ? (
               <EmptyState
                 title="Nenhum equipamento cadastrado"
                 description="Cadastre o equipamento de um cliente para usá-lo nas ordens de serviço."
@@ -153,7 +117,7 @@ export function EquipamentosPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {visiveis.map((eq) => (
+                {equipamentos.map((eq) => (
                   <TableRow key={eq.id} className="group">
                     <TableCell>
                       <div className="flex items-center gap-3">
@@ -186,12 +150,14 @@ export function EquipamentosPage() {
             </Table>
           )}
         </CardFlush>
-        {equipamentos && equipamentos.length > 0 && (
-          <CardFooter className="gap-1 text-xs text-muted-foreground">
-            <strong className="text-foreground">{visiveis.length}</strong>
-            de {equipamentos.length}
-            {equipamentos.length === 1 ? "equipamento" : "equipamentos"}
-          </CardFooter>
+        {lista.pagina && lista.pagina.totalElementos > 0 && (
+          <Paginacao
+            pagina={lista.pagina}
+            carregando={lista.carregando}
+            onIrPara={lista.irPara}
+            singular="equipamento"
+            plural="equipamentos"
+          />
         )}
       </Card>
 
@@ -217,11 +183,7 @@ export function EquipamentosPage() {
             ? excluirEquipamento(token, modal.equipamento.id)
             : Promise.resolve()
         }
-        onExcluido={() => {
-          if (modal?.tipo !== "excluir") return
-          const { id } = modal.equipamento
-          setEquipamentos((atuais) => atuais?.filter((e) => e.id !== id) ?? null)
-        }}
+        onExcluido={lista.recarregar}
       />
     </>
   )

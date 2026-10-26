@@ -5,9 +5,8 @@ import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 
 /**
- * Barra de busca das listagens. O filtro é feito na própria página, sobre a
- * lista já carregada — nenhuma das listagens é paginada na tela, então não vale
- * uma ida ao servidor a cada tecla.
+ * Barra de busca das listagens. A busca vai ao servidor (param `busca`), com o
+ * debounce do `useListagem` segurando a ida até a pessoa parar de digitar.
  */
 export function DataToolbar({
   placeholder,

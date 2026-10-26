@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useState } from "react"
 import { Loader2, Phone, Plus } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { Card, CardFlush, CardFooter } from "@/components/ui/card"
+import { Card, CardFlush } from "@/components/ui/card"
 import {
   Select,
   SelectContent,
@@ -23,18 +23,21 @@ import { AcoesMenu } from "@/components/AcoesMenu"
 import { DataToolbar, EmptyState } from "@/components/DataToolbar"
 import { Initials } from "@/components/Initials"
 import { PageHeader } from "@/components/PageHeader"
+import { Paginacao } from "@/components/Paginacao"
 import { ClienteDialog } from "@/components/dialogs/ClienteDialog"
 import { ExcluirDialog } from "@/components/dialogs/ExcluirDialog"
 import { useAuth } from "@/hooks/useAuth"
 import { useFeedback } from "@/hooks/useFeedback"
-import { ApiError } from "@/lib/api"
+import { useListagem } from "@/hooks/useListagem"
+import { ApiError, ativoDaSituacao } from "@/lib/api"
+import type { Situacao } from "@/lib/api"
 import {
   alterarSituacaoCliente,
   excluirCliente,
   listarClientes,
 } from "@/lib/cliente-api"
 import type { Cliente } from "@/lib/cliente-api"
-import { maskTelefone, normalizar } from "@/lib/format"
+import { maskTelefone } from "@/lib/format"
 
 /** Diálogo aberto no momento: cadastro, edição ou confirmação de exclusão. */
 type Modal =
@@ -45,50 +48,28 @@ type Modal =
 export function ClientesPage() {
   const { token, logout } = useAuth()
   const { falha } = useFeedback()
-  const [clientes, setClientes] = useState<Cliente[] | null>(null)
-  const [erro, setErro] = useState<string | null>(null)
-  const [tentativa, setTentativa] = useState(0)
   // O modal fica guardado depois de fechar para o conteúdo não mudar na animação de saída.
   const [modal, setModal] = useState<Modal | null>(null)
   const [aberto, setAberto] = useState(false)
-  const [busca, setBusca] = useState("")
-  const [filtroSituacao, setFiltroSituacao] = useState("TODOS")
+  // Abre só com os ativos: a carteira inteira não precisa vir na primeira carga.
+  const [filtroSituacao, setFiltroSituacao] = useState<Situacao>("ATIVOS")
+
+  const lista = useListagem(
+    listarClientes,
+    { ativo: ativoDaSituacao(filtroSituacao) },
+    { mensagemErro: "Não foi possível carregar os clientes." }
+  )
+  const clientes = lista.itens
+  const { substituir: trocar } = lista
+  const substituir = useCallback(
+    (atualizado: Cliente) => trocar(atualizado, (a, b) => a.id === b.id),
+    [trocar]
+  )
 
   const abrir = (proximo: Modal) => {
     setModal(proximo)
     setAberto(true)
   }
-
-  useEffect(() => {
-    if (!token) return
-    let cancelado = false
-
-    listarClientes(token)
-      .then((pagina) => {
-        if (cancelado) return
-        setClientes(pagina.conteudo)
-        setErro(null)
-      })
-      .catch((error) => {
-        if (cancelado) return
-        if (error instanceof ApiError && error.status === 401) return logout()
-        setErro(
-          error instanceof ApiError
-            ? error.message
-            : "Não foi possível carregar os clientes."
-        )
-      })
-
-    return () => {
-      cancelado = true
-    }
-  }, [token, logout, tentativa])
-
-  const substituir = useCallback((atualizado: Cliente) => {
-    setClientes((atuais) =>
-      atuais?.map((c) => (c.id === atualizado.id ? atualizado : c)) ?? null
-    )
-  }, [])
 
   /** Otimista: o switch muda na hora e volta se a API recusar. */
   const alternarSituacao = async (cliente: Cliente, ativo: boolean) => {
@@ -106,28 +87,11 @@ export function ClientesPage() {
     }
   }
 
-  const aoSalvar = (salvo: Cliente, criado: boolean) => {
-    if (!criado) return substituir(salvo)
-    setClientes((atuais) =>
-      [...(atuais ?? []), salvo].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
-    )
-  }
+  // Cadastro novo pode cair em qualquer página da ordenação: recarrega do servidor.
+  const aoSalvar = (salvo: Cliente, criado: boolean) =>
+    criado ? lista.recarregar() : substituir(salvo)
 
-  const ativos = clientes?.filter((c) => c.ativo).length ?? 0
-
-  const visiveis = useMemo(() => {
-    const termo = normalizar(busca.trim())
-    const digitos = busca.replace(/\D/g, "")
-    return (clientes ?? []).filter((cliente) => {
-      if (filtroSituacao === "ATIVOS" && !cliente.ativo) return false
-      if (filtroSituacao === "INATIVOS" && cliente.ativo) return false
-      if (!termo) return true
-      return (
-        normalizar(cliente.nome).includes(termo) ||
-        (digitos.length > 0 && cliente.telefone.includes(digitos))
-      )
-    })
-  }, [clientes, busca, filtroSituacao])
+  const filtrando = lista.buscando || filtroSituacao !== "TODOS"
 
   return (
     <>
@@ -145,10 +109,13 @@ export function ClientesPage() {
       <Card className="overflow-hidden">
         <DataToolbar
           placeholder="Buscar por nome ou telefone…"
-          busca={busca}
-          onBuscaChange={setBusca}
+          busca={lista.busca}
+          onBuscaChange={lista.setBusca}
         >
-          <Select value={filtroSituacao} onValueChange={setFiltroSituacao}>
+          <Select
+            value={filtroSituacao}
+            onValueChange={(valor) => setFiltroSituacao(valor as Situacao)}
+          >
             <SelectTrigger className="w-40" aria-label="Filtrar por situação">
               <SelectValue />
             </SelectTrigger>
@@ -160,12 +127,12 @@ export function ClientesPage() {
           </Select>
         </DataToolbar>
         <CardFlush className="border-t-0">
-          {erro && !clientes ? (
+          {lista.erro && !clientes ? (
             <EmptyState
               title="Não foi possível carregar os clientes"
-              description={erro}
+              description={lista.erro}
               action={
-                <Button variant="outline" onClick={() => setTentativa((n) => n + 1)}>
+                <Button variant="outline" onClick={lista.recarregar}>
                   Tentar novamente
                 </Button>
               }
@@ -178,8 +145,8 @@ export function ClientesPage() {
               <Loader2 className="size-4 animate-spin" aria-hidden />
               Carregando clientes…
             </div>
-          ) : visiveis.length === 0 ? (
-            clientes.length === 0 ? (
+          ) : clientes.length === 0 ? (
+            !filtrando ? (
               <EmptyState
                 title="Nenhum cliente cadastrado"
                 description="Cadastre o primeiro cliente para abrir ordens de serviço."
@@ -193,7 +160,7 @@ export function ClientesPage() {
             ) : (
               <EmptyState
                 title="Nenhum cliente encontrado"
-                description="Nenhum cliente corresponde à busca ou ao filtro."
+                description="Nenhum cliente corresponde à busca ou ao filtro. Experimente mudar a situação para “Todos”."
               />
             )
           ) : (
@@ -207,7 +174,7 @@ export function ClientesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {visiveis.map((cliente) => (
+                {clientes.map((cliente) => (
                   <TableRow key={cliente.id} className="group">
                     <TableCell>
                       <div className="flex items-center gap-2.5">
@@ -255,15 +222,14 @@ export function ClientesPage() {
             </Table>
           )}
         </CardFlush>
-        {clientes && clientes.length > 0 && (
-          <CardFooter className="gap-1 text-xs text-muted-foreground">
-            <strong className="text-foreground">{visiveis.length}</strong>
-            de {clientes.length}
-            {clientes.length === 1 ? "cliente" : "clientes"}
-            <span aria-hidden>·</span>
-            <strong className="text-foreground">{ativos}</strong>
-            {ativos === 1 ? "ativo" : "ativos"}
-          </CardFooter>
+        {lista.pagina && lista.pagina.totalElementos > 0 && (
+          <Paginacao
+            pagina={lista.pagina}
+            carregando={lista.carregando}
+            onIrPara={lista.irPara}
+            singular="cliente"
+            plural="clientes"
+          />
         )}
       </Card>
 
@@ -285,11 +251,7 @@ export function ClientesPage() {
             ? excluirCliente(token, modal.cliente.id)
             : Promise.resolve()
         }
-        onExcluido={() => {
-          if (modal?.tipo !== "excluir") return
-          const { id } = modal.cliente
-          setClientes((atuais) => atuais?.filter((c) => c.id !== id) ?? null)
-        }}
+        onExcluido={lista.recarregar}
       />
     </>
   )
