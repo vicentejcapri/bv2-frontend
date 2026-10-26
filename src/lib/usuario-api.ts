@@ -30,12 +30,20 @@ export function atualizarMeuNome(token: string, nome: string) {
   })
 }
 
-/** 204. Todos os JWT anteriores morrem: é preciso entrar de novo. */
-export function alterarMinhaSenha(
+/** 202. Nada muda até o clique no link enviado para o e-mail atual. */
+export function solicitarTrocaSenha(
   token: string,
   body: { senhaAtual: string; senhaNova: string; senhaNovaConfirmacao: string }
 ) {
   return apiFetch("/usuarios/eu/senha", { method: "PUT", token, body })
+}
+
+/** Rota pública: o token do link é a credencial. Todos os JWT anteriores morrem. */
+export function confirmarTrocaSenha(tokenLink: string) {
+  return apiFetch("/auth/senha/confirmar", {
+    method: "POST",
+    body: { token: tokenLink },
+  })
 }
 
 /** 202. Nada muda até o clique no link enviado para o endereço novo. */

@@ -6,6 +6,7 @@ import { LoginPage } from "@/pages/LoginPage"
 import { EsqueciSenhaPage } from "@/pages/EsqueciSenhaPage"
 import { RedefinirSenhaPage } from "@/pages/RedefinirSenhaPage"
 import { ConfirmarEmailPage } from "@/pages/ConfirmarEmailPage"
+import { ConfirmarSenhaPage } from "@/pages/ConfirmarSenhaPage"
 import { DashboardPage } from "@/pages/DashboardPage"
 import { OrdensServicoPage } from "@/pages/OrdensServicoPage"
 import { ClientesPage } from "@/pages/ClientesPage"
@@ -23,6 +24,7 @@ export default function App() {
       {/* Caminho fixo: é para cá que aponta o link do e-mail enviado pelo backend */}
       <Route path="/redefinir-senha" element={<RedefinirSenhaPage />} />
       <Route path="/confirmar-email" element={<ConfirmarEmailPage />} />
+      <Route path="/confirmar-senha" element={<ConfirmarSenhaPage />} />
 
       {/* Rotas privadas: só entram quem está logado */}
       <Route element={<ProtectedRoute />}>
