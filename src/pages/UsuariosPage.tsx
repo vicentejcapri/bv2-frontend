@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useState } from "react"
 import { Loader2, Plus } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { Card, CardFlush, CardFooter } from "@/components/ui/card"
+import { Card, CardFlush } from "@/components/ui/card"
 import {
   Select,
   SelectContent,
@@ -23,13 +23,16 @@ import { AcoesMenu } from "@/components/AcoesMenu"
 import { DataToolbar, EmptyState } from "@/components/DataToolbar"
 import { Initials } from "@/components/Initials"
 import { PageHeader } from "@/components/PageHeader"
+import { Paginacao } from "@/components/Paginacao"
 import { ExcluirDialog } from "@/components/dialogs/ExcluirDialog"
 import { UsuarioDialog } from "@/components/dialogs/UsuarioDialog"
 import { useAuth } from "@/hooks/useAuth"
 import { useConta } from "@/hooks/useConta"
 import { useFeedback } from "@/hooks/useFeedback"
-import { ApiError } from "@/lib/api"
-import { formatDataBR, normalizar } from "@/lib/format"
+import { useListagem } from "@/hooks/useListagem"
+import { ApiError, ativoDaSituacao } from "@/lib/api"
+import type { Situacao } from "@/lib/api"
+import { formatDataBR } from "@/lib/format"
 import {
   ROLE_LABEL,
   alterarSituacaoUsuario,
@@ -49,50 +52,29 @@ export function UsuariosPage() {
   const { token, logout } = useAuth()
   const { recarregarContas } = useConta()
   const { falha } = useFeedback()
-  const [usuarios, setUsuarios] = useState<Usuario[] | null>(null)
-  const [erro, setErro] = useState<string | null>(null)
-  const [tentativa, setTentativa] = useState(0)
   // O modal fica guardado depois de fechar para o conteúdo não mudar na animação de saída.
   const [modal, setModal] = useState<Modal | null>(null)
   const [aberto, setAberto] = useState(false)
-  const [busca, setBusca] = useState("")
-  const [filtroSituacao, setFiltroSituacao] = useState("TODOS")
+  // Abre só com os ativos: a lista inteira não precisa vir na primeira carga.
+  const [filtroSituacao, setFiltroSituacao] = useState<Situacao>("ATIVOS")
+
+  const lista = useListagem(
+    listarUsuarios,
+    { ativo: ativoDaSituacao(filtroSituacao) },
+    { mensagemErro: "Não foi possível carregar os usuários." }
+  )
+  const usuarios = lista.itens
 
   const abrir = (proximo: Modal) => {
     setModal(proximo)
     setAberto(true)
   }
 
-  useEffect(() => {
-    if (!token) return
-    let cancelado = false
-
-    listarUsuarios(token)
-      .then((pagina) => {
-        if (cancelado) return
-        setUsuarios(pagina.conteudo)
-        setErro(null)
-      })
-      .catch((error) => {
-        if (cancelado) return
-        if (error instanceof ApiError && error.status === 401) return logout()
-        setErro(
-          error instanceof ApiError
-            ? error.message
-            : "Não foi possível carregar os usuários."
-        )
-      })
-
-    return () => {
-      cancelado = true
-    }
-  }, [token, logout, tentativa])
-
-  const substituir = useCallback((atualizado: Usuario) => {
-    setUsuarios((atuais) =>
-      atuais?.map((u) => (u.id === atualizado.id ? atualizado : u)) ?? null
-    )
-  }, [])
+  const { substituir: trocar } = lista
+  const substituir = useCallback(
+    (atualizado: Usuario) => trocar(atualizado, (a, b) => a.id === b.id),
+    [trocar]
+  )
 
   /** Otimista: o switch muda na hora e volta se a API recusar. */
   const alternarSituacao = async (usuario: Usuario, ativo: boolean) => {
@@ -114,26 +96,9 @@ export function UsuariosPage() {
 
   const aoSalvar = (salvo: Usuario, criado: boolean) => {
     recarregarContas()
-    if (!criado) return substituir(salvo)
-    setUsuarios((atuais) =>
-      [...(atuais ?? []), salvo].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
-    )
+    // Cadastro novo pode cair em qualquer página da ordenação: recarrega do servidor.
+    return criado ? lista.recarregar() : substituir(salvo)
   }
-
-  const ativos = usuarios?.filter((u) => u.ativo).length ?? 0
-
-  const visiveis = useMemo(() => {
-    const termo = normalizar(busca.trim())
-    return (usuarios ?? []).filter((usuario) => {
-      if (filtroSituacao === "ATIVOS" && !usuario.ativo) return false
-      if (filtroSituacao === "INATIVOS" && usuario.ativo) return false
-      if (!termo) return true
-      return (
-        normalizar(usuario.nome).includes(termo) ||
-        normalizar(usuario.email).includes(termo)
-      )
-    })
-  }, [usuarios, busca, filtroSituacao])
 
   return (
     <>
@@ -151,10 +116,13 @@ export function UsuariosPage() {
       <Card className="overflow-hidden">
         <DataToolbar
           placeholder="Buscar por nome ou e-mail…"
-          busca={busca}
-          onBuscaChange={setBusca}
+          busca={lista.busca}
+          onBuscaChange={lista.setBusca}
         >
-          <Select value={filtroSituacao} onValueChange={setFiltroSituacao}>
+          <Select
+            value={filtroSituacao}
+            onValueChange={(valor) => setFiltroSituacao(valor as Situacao)}
+          >
             <SelectTrigger className="w-40" aria-label="Filtrar por situação">
               <SelectValue />
             </SelectTrigger>
@@ -166,12 +134,12 @@ export function UsuariosPage() {
           </Select>
         </DataToolbar>
         <CardFlush className="border-t-0">
-          {erro && !usuarios ? (
+          {lista.erro && !usuarios ? (
             <EmptyState
               title="Não foi possível carregar os usuários"
-              description={erro}
+              description={lista.erro}
               action={
-                <Button variant="outline" onClick={() => setTentativa((n) => n + 1)}>
+                <Button variant="outline" onClick={lista.recarregar}>
                   Tentar novamente
                 </Button>
               }
@@ -184,7 +152,7 @@ export function UsuariosPage() {
               <Loader2 className="size-4 animate-spin" aria-hidden />
               Carregando usuários…
             </div>
-          ) : visiveis.length === 0 ? (
+          ) : usuarios.length === 0 ? (
             <EmptyState
               title="Nenhum usuário encontrado"
               description="Nenhum usuário corresponde à busca ou ao filtro."
@@ -201,7 +169,7 @@ export function UsuariosPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {visiveis.map((usuario) => {
+                {usuarios.map((usuario) => {
                   const master = usuario.role === "MASTER"
                   return (
                     <TableRow key={usuario.id} className="group">
@@ -260,14 +228,14 @@ export function UsuariosPage() {
             </Table>
           )}
         </CardFlush>
-        {usuarios && usuarios.length > 0 && (
-          <CardFooter className="gap-1 text-xs text-muted-foreground">
-            <strong className="text-foreground">{visiveis.length}</strong>
-            de {usuarios.length} {usuarios.length === 1 ? "usuário" : "usuários"}
-            <span aria-hidden>·</span>
-            <strong className="text-foreground">{ativos}</strong>
-            {ativos === 1 ? "ativo" : "ativos"}
-          </CardFooter>
+        {lista.pagina && lista.pagina.totalElementos > 0 && (
+          <Paginacao
+            pagina={lista.pagina}
+            carregando={lista.carregando}
+            onIrPara={lista.irPara}
+            singular="usuário"
+            plural="usuários"
+          />
         )}
       </Card>
 
@@ -298,10 +266,7 @@ export function UsuariosPage() {
             : Promise.resolve()
         }
         onExcluido={() => {
-          if (modal?.tipo !== "excluir") return
-          const { id } = modal.usuario
-          setUsuarios((atuais) => atuais?.filter((u) => u.id !== id) ?? null)
-          // Se o MASTER estava operando essa conta, o seletor volta para a dele.
+          lista.recarregar()
           recarregarContas()
         }}
       />

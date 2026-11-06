@@ -1,5 +1,6 @@
 import { apiFetch } from "@/lib/api"
-import type { Pagina } from "@/lib/api"
+import { montarQuery } from "@/lib/api"
+import type { Pagina, ParamsListagem } from "@/lib/api"
 
 export type Cliente = {
   id: number
@@ -13,10 +14,26 @@ export type Cliente = {
 /** Corpo do POST e do PUT: a situação muda pelos PATCH /ativar e /desativar. */
 export type ClienteInput = Pick<Cliente, "nome" | "telefone">
 
-/** Sem paginação na tela por enquanto: uma página grande traz a carteira toda. */
-export function listarClientes(token: string) {
-  const query = new URLSearchParams({ size: "1000", sort: "nome,asc" })
+export type FiltrosCliente = ParamsListagem & { ativo?: boolean }
+
+/** `busca` casa com parte do nome ou do telefone. */
+export function listarClientes(token: string, filtros: FiltrosCliente = {}) {
+  const query = montarQuery({ sort: "nome,asc", ...filtros })
   return apiFetch<Pagina<Cliente>>(`/clientes?${query}`, { token })
+}
+
+/**
+ * Clientes com o mesmo nome (sem caixa) e o mesmo telefone. Só serve para avisar:
+ * o backend aceita o cadastro de qualquer jeito.
+ */
+export function buscarPossiveisDuplicados(
+  token: string,
+  body: ClienteInput,
+  ignorarId?: number
+) {
+  const query = new URLSearchParams({ nome: body.nome, telefone: body.telefone })
+  if (ignorarId !== undefined) query.set("ignorarId", String(ignorarId))
+  return apiFetch<Cliente[]>(`/clientes/possiveis-duplicados?${query}`, { token })
 }
 
 export function criarCliente(token: string, body: ClienteInput) {

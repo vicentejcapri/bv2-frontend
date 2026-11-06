@@ -1,5 +1,6 @@
 import { apiFetch } from "@/lib/api"
-import type { Pagina } from "@/lib/api"
+import { montarQuery } from "@/lib/api"
+import type { Pagina, ParamsListagem } from "@/lib/api"
 import type { StatusOs } from "@/lib/os-api"
 
 /** Resultado do envio ao cliente — diferente do status da OS que disparou. */
@@ -35,8 +36,16 @@ export type Placeholder = {
   exemplo: string
 }
 
-export function listarNotificacoes(token: string) {
-  const query = new URLSearchParams({ size: "1000", sort: "criadoEm,desc" })
+export type FiltrosNotificacao = ParamsListagem & {
+  status?: StatusNotificacao
+  /** "AAAA-MM-DD", inclusivas, sobre a data do envio. */
+  dataInicio?: string
+  dataFim?: string
+}
+
+/** `busca` casa com parte do nome do cliente ou do texto, ou com o número da OS. */
+export function listarNotificacoes(token: string, filtros: FiltrosNotificacao = {}) {
+  const query = montarQuery({ sort: "criadoEm,desc", ...filtros })
   return apiFetch<Pagina<Notificacao>>(`/notificacoes?${query}`, { token })
 }
 

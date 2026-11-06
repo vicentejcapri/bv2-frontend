@@ -34,7 +34,8 @@ export function ContaProvider({ children }: { children: ReactNode }) {
     if (!token || !isMaster) return
     let cancelado = false
 
-    listarUsuarios(token, { ativo: true })
+    // Poucos usuários: uma página com o teto do backend traz todas as contas.
+    listarUsuarios(token, { ativo: true, size: 100 })
       .then((pagina) => {
         if (!cancelado) setResultado({ token, contas: pagina.conteudo })
       })

@@ -1,5 +1,6 @@
 import { apiFetch } from "@/lib/api"
-import type { Pagina } from "@/lib/api"
+import { montarQuery } from "@/lib/api"
+import type { Pagina, ParamsListagem } from "@/lib/api"
 
 export type RoleUsuario = "MASTER" | "ADMIN"
 
@@ -30,12 +31,20 @@ export function atualizarMeuNome(token: string, nome: string) {
   })
 }
 
-/** 204. Todos os JWT anteriores morrem: é preciso entrar de novo. */
-export function alterarMinhaSenha(
+/** 202. Nada muda até o clique no link enviado para o e-mail atual. */
+export function solicitarTrocaSenha(
   token: string,
   body: { senhaAtual: string; senhaNova: string; senhaNovaConfirmacao: string }
 ) {
   return apiFetch("/usuarios/eu/senha", { method: "PUT", token, body })
+}
+
+/** Rota pública: o token do link é a credencial. Todos os JWT anteriores morrem. */
+export function confirmarTrocaSenha(tokenLink: string) {
+  return apiFetch("/auth/senha/confirmar", {
+    method: "POST",
+    body: { token: tokenLink },
+  })
 }
 
 /** 202. Nada muda até o clique no link enviado para o endereço novo. */
@@ -58,10 +67,11 @@ export function confirmarTrocaEmail(tokenLink: string) {
 // Cadastro de usuários do sistema — só o MASTER (403 para o ADMIN)
 // ------------------------------------------------------------------
 
-/** Uma página grande basta: o sistema tem poucos usuários. */
-export function listarUsuarios(token: string, filtro: { ativo?: boolean } = {}) {
-  const query = new URLSearchParams({ size: "200", sort: "nome,asc" })
-  if (filtro.ativo !== undefined) query.set("ativo", String(filtro.ativo))
+export type FiltrosUsuario = ParamsListagem & { ativo?: boolean }
+
+/** `busca` casa com parte do nome ou do e-mail. */
+export function listarUsuarios(token: string, filtros: FiltrosUsuario = {}) {
+  const query = montarQuery({ sort: "nome,asc", ...filtros })
   return apiFetch<Pagina<Usuario>>(`/usuarios?${query}`, { token })
 }
 

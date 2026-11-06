@@ -1,6 +1,5 @@
 import { useState } from "react"
 import type { FormEvent, ReactNode } from "react"
-import { useNavigate } from "react-router-dom"
 import { ChevronRight, Loader2 } from "lucide-react"
 
 import { AuthAlert } from "@/components/layout/AuthShell"
@@ -26,15 +25,14 @@ import {
 } from "@/components/ui/tooltip"
 import { useAuth } from "@/hooks/useAuth"
 import { ApiError } from "@/lib/api"
-import { avisarCredenciaisAlteradas } from "@/lib/credenciais-canal"
 import { validarEmail } from "@/lib/auth-api"
 import { initialsOf } from "@/lib/format"
 import { fieldProps } from "@/lib/form"
 import {
   ROLE_LABEL,
-  alterarMinhaSenha,
   atualizarMeuNome,
   solicitarTrocaEmail,
+  solicitarTrocaSenha,
 } from "@/lib/usuario-api"
 import type { Usuario } from "@/lib/usuario-api"
 import { cn } from "@/lib/utils"
@@ -133,7 +131,8 @@ function PerfilConteudo({
         <DialogDescription>
           {aba === "dados" && "Seu nome aparece no painel e nas ações registradas."}
           {aba === "email" && "O e-mail é o seu login. A troca só vale depois de confirmada."}
-          {aba === "senha" && "Ao trocar a senha você sai de todas as sessões."}
+          {aba === "senha" &&
+            "A troca só vale depois de confirmada no seu e-mail. Aí você sai de todas as sessões."}
         </DialogDescription>
       </DialogHeader>
 
@@ -186,7 +185,7 @@ function PerfilConteudo({
       >
         {aba === "dados" && <FormNome usuario={usuario} onFechar={onFechar} />}
         {aba === "email" && <FormEmail usuario={usuario} />}
-        {aba === "senha" && <FormSenha />}
+        {aba === "senha" && <FormSenha usuario={usuario} />}
       </div>
     </>
   )
@@ -223,14 +222,14 @@ function AbaForm({
 }
 
 /**
- * Trata o erro comum às três abas: 401 derruba a sessão; 400 vira erro por campo;
- * o resto (409, 422, rede) vira alerta geral com a mensagem do backend.
+ * Trata o erro comum às três abas: 401 mostra o alerta de sessão expirada; 400 vira
+ * erro por campo; o resto (409, 422, rede) vira alerta geral com a mensagem do backend.
  */
 function useTratarErro() {
-  const { logout } = useAuth()
+  const { expirarSessao } = useAuth()
   return (error: unknown): Erros => {
     if (error instanceof ApiError && error.status === 401) {
-      logout()
+      expirarSessao()
       return {}
     }
     if (error instanceof ApiError && error.status === 400 && error.erros) {
@@ -396,15 +395,15 @@ function FormEmail({ usuario }: { usuario: Usuario }) {
   )
 }
 
-function FormSenha() {
-  const { token, logout } = useAuth()
-  const navigate = useNavigate()
+function FormSenha({ usuario }: { usuario: Usuario }) {
+  const { token } = useAuth()
   const tratarErro = useTratarErro()
   const [senhaAtual, setSenhaAtual] = useState("")
   const [senhaNova, setSenhaNova] = useState("")
   const [confirmacao, setConfirmacao] = useState("")
   const [erros, setErros] = useState<Erros>({})
   const [enviando, setEnviando] = useState(false)
+  const [enviado, setEnviado] = useState(false)
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault()
@@ -427,27 +426,48 @@ function FormSenha() {
 
     setEnviando(true)
     try {
-      await alterarMinhaSenha(token, {
+      // Nada muda ainda: a sessão continua até o clique no link. Quando ele acontecer,
+      // esta aba recebe o alerta de sessão expirada (pelo canal ou ao voltar o foco).
+      await solicitarTrocaSenha(token, {
         senhaAtual,
         senhaNova,
         senhaNovaConfirmacao: confirmacao,
       })
-      // O backend invalida o token atual: sai e volta ao login com o aviso. As outras
-      // abas logadas nesta conta também saem.
-      avisarCredenciaisAlteradas()
-      logout()
-      navigate("/login", {
-        replace: true,
-        state: { aviso: "Senha alterada. Entre com a nova senha." },
-      })
+      setEnviado(true)
+      setSenhaAtual("")
+      setSenhaNova("")
+      setConfirmacao("")
     } catch (error) {
       setErros(tratarErro(error))
+    } finally {
       setEnviando(false)
     }
   }
 
+  if (enviado) {
+    return (
+      <>
+        <DialogBody className="space-y-3 pt-0">
+          <AuthAlert tom="sucesso">
+            Enviamos um link para <strong className="font-medium">{usuario.email}</strong>.
+            Abra-o em até 30 minutos para confirmar a nova senha.
+          </AuthAlert>
+          <p className="text-sm text-muted-foreground">
+            Até lá, sua senha atual continua valendo. Depois da confirmação, todas as
+            sessões são encerradas e você entra de novo com a nova senha.
+          </p>
+        </DialogBody>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button type="button">Entendi</Button>
+          </DialogClose>
+        </DialogFooter>
+      </>
+    )
+  }
+
   return (
-    <AbaForm onSubmit={handleSubmit} enviando={enviando} rotulo="Alterar senha">
+    <AbaForm onSubmit={handleSubmit} enviando={enviando} rotulo="Enviar confirmação">
       <Field id="perfil-senha-atual" label="Senha atual" error={erros.senhaAtual}>
         <PasswordInput
           {...fieldProps("perfil-senha-atual", erros.senhaAtual)}

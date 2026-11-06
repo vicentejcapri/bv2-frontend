@@ -51,6 +51,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUsuario(null)
   }, [])
 
+  const expirarSessao = useCallback(() => setSessaoExpirada(true), [])
+
   const token = sessao?.token ?? null
   const tokenRef = useRef(token)
   useEffect(() => {
@@ -121,9 +123,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       usuario,
       login,
       logout,
+      expirarSessao,
       setUsuario,
     }),
-    [sessao, token, usuario, login, logout]
+    [sessao, token, usuario, login, logout, expirarSessao]
   )
 
   return (

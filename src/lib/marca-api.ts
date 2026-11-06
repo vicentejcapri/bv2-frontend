@@ -7,9 +7,12 @@ export type Marca = {
   criadoEm: string
 }
 
-/** O catálogo é pequeno: uma página grande traz todas as marcas para o select. */
+/**
+ * O catálogo é pequeno: uma página com o teto do backend (100) traz todas as
+ * marcas para o select.
+ */
 export function listarMarcas(token: string) {
-  const query = new URLSearchParams({ size: "1000", sort: "nome,asc" })
+  const query = new URLSearchParams({ size: "100", sort: "nome,asc" })
   return apiFetch<Pagina<Marca>>(`/marcas?${query}`, { token })
 }
 

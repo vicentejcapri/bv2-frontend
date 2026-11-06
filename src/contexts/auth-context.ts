@@ -10,6 +10,11 @@ export type AuthContextValue = {
   /** Lança `ApiError` quando o backend recusa as credenciais. */
   login: (email: string, senha: string) => Promise<void>
   logout: () => void
+  /**
+   * Mostra o alerta "Sessão expirada" e só sai quando ele fecha. Para 401 de quem
+   * estava no meio de algo — sair calado parece bug.
+   */
+  expirarSessao: () => void
   /** Troca o usuário em memória depois de uma edição bem-sucedida. */
   setUsuario: (usuario: Usuario) => void
 }

@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import { ClienteCombobox } from "@/components/ClienteCombobox"
 import { ClienteDialog } from "./ClienteDialog"
 import { CRIAR, CriarItem } from "./CriarItem"
 import { EquipamentoDialog } from "./EquipamentoDialog"
@@ -31,7 +32,6 @@ import { Field } from "./Field"
 import { ServicoDialog } from "./ServicoDialog"
 import { useAuth } from "@/hooks/useAuth"
 import { ApiError } from "@/lib/api"
-import { listarClientes } from "@/lib/cliente-api"
 import type { Cliente } from "@/lib/cliente-api"
 import { listarEquipamentos } from "@/lib/equipamento-api"
 import type { Equipamento } from "@/lib/equipamento-api"
@@ -95,12 +95,16 @@ export function NovaOSDialog({
 function NovaOSForm({ onCriada }: { onCriada: (ordem: OrdemServico) => void }) {
   const { token, logout } = useAuth()
 
-  const [clientes, setClientes] = useState<Cliente[] | null>(null)
-  const [equipamentos, setEquipamentos] = useState<Equipamento[] | null>(null)
+  // Equipamentos vêm por cliente, depois da escolha: guardar o id junto evita
+  // mostrar os do cliente anterior enquanto os novos não chegam.
+  const [equipamentos, setEquipamentos] = useState<{
+    clienteId: number
+    itens: Equipamento[]
+  } | null>(null)
   const [servicos, setServicos] = useState<Servico[] | null>(null)
   const [erroCarga, setErroCarga] = useState<string | null>(null)
 
-  const [clienteId, setClienteId] = useState("")
+  const [cliente, setCliente] = useState<Cliente | null>(null)
   const [dataEntrada, setDataEntrada] = useState(hojeISO())
   const [observacao, setObservacao] = useState("")
   const [itens, setItens] = useState<Item[]>([ITEM_VAZIO])
@@ -108,25 +112,21 @@ function NovaOSForm({ onCriada }: { onCriada: (ordem: OrdemServico) => void }) {
   const [enviando, setEnviando] = useState(false)
   const [cadastro, setCadastro] = useState<Cadastro | null>(null)
 
+  // Só o catálogo de serviços vem de uma vez (é pequeno e não depende do cliente).
+  // O backend recusa serviço inativo (422), então a lista já vem filtrada.
   useEffect(() => {
     if (!token) return
     let cancelado = false
 
-    Promise.all([listarClientes(token), listarEquipamentos(token), listarServicos(token)])
-      .then(([pClientes, pEquipamentos, pServicos]) => {
-        if (cancelado) return
-        // O backend recusa OS de cliente inativo e serviço inativo (422).
-        setClientes(pClientes.conteudo.filter((c) => c.ativo))
-        setEquipamentos(pEquipamentos.conteudo)
-        setServicos(pServicos.conteudo.filter((s) => s.ativo))
+    listarServicos(token, { ativo: true, size: 100 })
+      .then((pagina) => {
+        if (!cancelado) setServicos(pagina.conteudo)
       })
       .catch((error) => {
         if (cancelado) return
         if (error instanceof ApiError && error.status === 401) return logout()
         setErroCarga(
-          error instanceof ApiError
-            ? error.message
-            : "Não foi possível carregar clientes, equipamentos e serviços."
+          error instanceof ApiError ? error.message : "Não foi possível carregar os serviços."
         )
       })
 
@@ -135,13 +135,34 @@ function NovaOSForm({ onCriada }: { onCriada: (ordem: OrdemServico) => void }) {
     }
   }, [token, logout])
 
-  const clienteSelecionado = clientes?.find((c) => String(c.id) === clienteId)
+  // O item só aceita equipamento do mesmo cliente da OS (regra do backend): busca
+  // só os dele, em vez de trazer os de todos e filtrar aqui.
+  const clienteId = cliente?.id ?? null
+  useEffect(() => {
+    if (!token || clienteId === null) return
+    let cancelado = false
 
-  // O item só aceita equipamento do mesmo cliente da OS (regra do backend).
-  const equipamentosDoCliente = useMemo(
-    () => equipamentos?.filter((e) => String(e.cliente.id) === clienteId) ?? [],
-    [equipamentos, clienteId]
-  )
+    listarEquipamentos(token, { clienteId, size: 100 })
+      .then((pagina) => {
+        if (!cancelado) setEquipamentos({ clienteId, itens: pagina.conteudo })
+      })
+      .catch((error) => {
+        if (cancelado) return
+        if (error instanceof ApiError && error.status === 401) return logout()
+        setErroCarga(
+          error instanceof ApiError
+            ? error.message
+            : "Não foi possível carregar os equipamentos do cliente."
+        )
+      })
+
+    return () => {
+      cancelado = true
+    }
+  }, [token, logout, clienteId])
+
+  const equipamentosDoCliente =
+    equipamentos && equipamentos.clienteId === clienteId ? equipamentos.itens : null
 
   const total = useMemo(
     () =>
@@ -172,8 +193,8 @@ function NovaOSForm({ onCriada }: { onCriada: (ordem: OrdemServico) => void }) {
     setErros((atuais) => ({ ...atuais, itens: undefined }))
   }
 
-  const trocarCliente = (valor: string) => {
-    setClienteId(valor)
+  const trocarCliente = (novo: Cliente) => {
+    setCliente(novo)
     // Equipamento de outro cliente não vale mais: recomeça os itens.
     setItens([ITEM_VAZIO])
     setErros((atuais) => ({ ...atuais, clienteId: undefined, itens: undefined }))
@@ -190,7 +211,7 @@ function NovaOSForm({ onCriada }: { onCriada: (ordem: OrdemServico) => void }) {
     const preenchidos = itens.filter((i) => i.equipamentoId && i.servicoId)
     const pares = new Set(preenchidos.map((i) => `${i.equipamentoId}-${i.servicoId}`))
     const locais: Erros = {
-      clienteId: !clienteId ? "Selecione o cliente." : undefined,
+      clienteId: !cliente ? "Selecione o cliente." : undefined,
       dataEntrada: !dataEntrada
         ? "Informe a data de entrada."
         : dataEntrada > hojeISO()
@@ -214,13 +235,14 @@ function NovaOSForm({ onCriada }: { onCriada: (ordem: OrdemServico) => void }) {
               : undefined,
     }
     setErros(locais)
-    if (Object.values(locais).some(Boolean)) return
+    // O !cliente já virou erro acima; repetir aqui só estreita o tipo.
+    if (Object.values(locais).some(Boolean) || !cliente) return
 
     setEnviando(true)
     try {
       onCriada(
         await criarOrdem(token, {
-          clienteId: Number(clienteId),
+          clienteId: cliente.id,
           dataEntrada,
           observacao: observacao.trim() || null,
           itens: preenchidos.map((i) => ({
@@ -248,7 +270,7 @@ function NovaOSForm({ onCriada }: { onCriada: (ordem: OrdemServico) => void }) {
     }
   }
 
-  const carregando = !clientes || !equipamentos || !servicos
+  const carregando = !servicos
 
   return (
     <>
@@ -269,37 +291,16 @@ function NovaOSForm({ onCriada }: { onCriada: (ordem: OrdemServico) => void }) {
               label="Cliente"
               required
               error={erros.clienteId}
-              hint={
-                clientes?.length === 0
-                  ? "Nenhum cliente ativo — cadastre o primeiro por aqui mesmo."
-                  : "Só aparecem clientes ativos."
-              }
+              hint="Digite parte do nome ou do telefone. Só aparecem clientes ativos."
             >
-              <Select
-                value={clienteId}
-                onValueChange={(valor) =>
-                  valor === CRIAR ? setCadastro({ tipo: "cliente" }) : trocarCliente(valor)
-                }
-                disabled={!clientes}
-              >
-                <SelectTrigger
-                  id="os-cliente"
-                  aria-invalid={erros.clienteId ? true : undefined}
-                  aria-describedby={erros.clienteId ? "os-cliente-error" : undefined}
-                >
-                  <SelectValue placeholder={carregando ? "Carregando…" : "Selecione o cliente"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {clientes?.map((cliente) => (
-                    <SelectItem key={cliente.id} value={String(cliente.id)}>
-                      {cliente.nome}
-                    </SelectItem>
-                  ))}
-                  <CriarItem separador={(clientes?.length ?? 0) > 0}>
-                    Criar novo cliente
-                  </CriarItem>
-                </SelectContent>
-              </Select>
+              <ClienteCombobox
+                id="os-cliente"
+                value={cliente}
+                onChange={trocarCliente}
+                onCriar={() => setCadastro({ tipo: "cliente" })}
+                invalido={!!erros.clienteId}
+                descritoPor={erros.clienteId ? "os-cliente-error" : "os-cliente-hint"}
+              />
             </Field>
 
             <Field
@@ -342,6 +343,14 @@ function NovaOSForm({ onCriada }: { onCriada: (ordem: OrdemServico) => void }) {
             {!clienteId ? (
               <p className="rounded-lg border border-dashed border-border px-3 py-6 text-center text-sm text-muted-foreground">
                 Selecione o cliente para lançar os serviços.
+              </p>
+            ) : !equipamentosDoCliente ? (
+              <p
+                role="status"
+                className="flex items-center justify-center gap-2 rounded-lg border border-dashed border-border px-3 py-6 text-sm text-muted-foreground"
+              >
+                <Loader2 className="size-4 animate-spin" aria-hidden />
+                Carregando equipamentos do cliente…
               </p>
             ) : equipamentosDoCliente.length === 0 ? (
               <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-border px-3 py-6 text-center">
@@ -521,19 +530,20 @@ function NovaOSForm({ onCriada }: { onCriada: (ordem: OrdemServico) => void }) {
       <ClienteDialog
         open={cadastro?.tipo === "cliente"}
         onOpenChange={fecharCadastro}
-        onSalvo={(novo) => {
-          setClientes((atuais) => inserirOrdenado(atuais, novo))
-          trocarCliente(String(novo.id))
-        }}
+        onSalvo={trocarCliente}
       />
 
-      {clienteSelecionado && (
+      {cliente && (
         <EquipamentoDialog
           open={cadastro?.tipo === "equipamento"}
           onOpenChange={fecharCadastro}
-          clienteFixo={clienteSelecionado}
+          clienteFixo={cliente}
           onSalvo={(novo) => {
-            setEquipamentos((atuais) => inserirOrdenado(atuais, novo))
+            setEquipamentos((atuais) =>
+              atuais && atuais.clienteId === cliente.id
+                ? { ...atuais, itens: inserirOrdenado(atuais.itens, novo) }
+                : atuais
+            )
             if (cadastro?.tipo === "equipamento") {
               alterarItem(cadastro.indice, { equipamentoId: String(novo.id) })
             }

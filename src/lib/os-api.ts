@@ -1,5 +1,6 @@
 import { apiFetch } from "@/lib/api"
-import type { Pagina } from "@/lib/api"
+import { montarQuery } from "@/lib/api"
+import type { Pagina, ParamsListagem } from "@/lib/api"
 
 export type StatusOs = "EM_ANDAMENTO" | "CONCLUIDA" | "ENTREGUE" | "CANCELADA"
 
@@ -47,8 +48,14 @@ export function criarOrdem(token: string, body: OrdemServicoCriacao) {
   return apiFetch<OrdemServico>("/ordens-servico", { method: "POST", token, body })
 }
 
-export function listarOrdens(token: string) {
-  const query = new URLSearchParams({ size: "1000", sort: "dataEntrada,desc" })
+/** OS que ainda estão na oficina: o filtro padrão da tela. */
+export const STATUS_EM_ABERTO: StatusOs[] = ["EM_ANDAMENTO", "CONCLUIDA"]
+
+export type FiltrosOrdem = ParamsListagem & { status?: StatusOs[] }
+
+/** `busca` casa com parte do nome do cliente ou com o número da OS. */
+export function listarOrdens(token: string, filtros: FiltrosOrdem = {}) {
+  const query = montarQuery({ sort: "dataEntrada,desc", ...filtros })
   return apiFetch<Pagina<OrdemServico>>(`/ordens-servico?${query}`, { token })
 }
 

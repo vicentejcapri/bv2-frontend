@@ -23,12 +23,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { ClienteCombobox } from "@/components/ClienteCombobox"
 import { ClienteDialog } from "./ClienteDialog"
 import { CRIAR, CriarItem } from "./CriarItem"
 import { Field } from "./Field"
 import { useAuth } from "@/hooks/useAuth"
 import { ApiError } from "@/lib/api"
-import { listarClientes } from "@/lib/cliente-api"
 import type { Cliente } from "@/lib/cliente-api"
 import { atualizarEquipamento, criarEquipamento } from "@/lib/equipamento-api"
 import type { Equipamento } from "@/lib/equipamento-api"
@@ -89,13 +89,13 @@ function EquipamentoForm({
   const editando = !!equipamento
   /** Cliente imutável: o da edição ou o que veio pronto de quem abriu o modal. */
   const clienteFixado = equipamento?.cliente ?? clienteFixo
-  const temClienteFixado = !!clienteFixado
 
-  const [clientes, setClientes] = useState<Cliente[] | null>(null)
   const [marcas, setMarcas] = useState<Marca[] | null>(null)
   const [erroCarga, setErroCarga] = useState<string | null>(null)
 
-  const [clienteId, setClienteId] = useState(clienteFixado ? String(clienteFixado.id) : "")
+  // Escolhido no combobox; com cliente fixado não há escolha.
+  const [clienteEscolhido, setClienteEscolhido] = useState<Cliente | null>(null)
+  const clienteId = clienteFixado?.id ?? clienteEscolhido?.id ?? null
   const [marcaId, setMarcaId] = useState(equipamento ? String(equipamento.marca.id) : "")
   const [nome, setNome] = useState(equipamento?.nome ?? "")
   const [erros, setErros] = useState<Erros>({})
@@ -111,16 +111,10 @@ function EquipamentoForm({
     if (!token) return
     let cancelado = false
 
-    // Com o cliente decidido não há o que escolher: só as marcas interessam.
-    Promise.all([
-      temClienteFixado ? Promise.resolve(null) : listarClientes(token),
-      listarMarcas(token),
-    ])
-      .then(([paginaClientes, paginaMarcas]) => {
-        if (cancelado) return
-        // Só cliente ativo pode receber equipamento novo (o backend responde 422).
-        setClientes(paginaClientes?.conteudo.filter((c) => c.ativo) ?? [])
-        setMarcas(paginaMarcas.conteudo)
+    // O cliente se busca digitando (ClienteCombobox): aqui só as marcas.
+    listarMarcas(token)
+      .then((paginaMarcas) => {
+        if (!cancelado) setMarcas(paginaMarcas.conteudo)
       })
       .catch((error) => {
         if (cancelado) return
@@ -128,14 +122,14 @@ function EquipamentoForm({
         setErroCarga(
           error instanceof ApiError
             ? error.message
-            : "Não foi possível carregar clientes e marcas."
+            : "Não foi possível carregar as marcas."
         )
       })
 
     return () => {
       cancelado = true
     }
-  }, [token, logout, temClienteFixado])
+  }, [token, logout])
 
   const tratarErro = (error: unknown, campo: keyof Erros = "geral"): Erros => {
     if (error instanceof ApiError && error.status === 401) {
@@ -209,7 +203,7 @@ function EquipamentoForm({
     // Mesmas regras do EquipamentoCriacaoRequest / EquipamentoAtualizacaoRequest.
     const limpo = nome.trim()
     const locais: Erros = {
-      clienteId: !clienteId ? "Selecione o cliente do equipamento." : undefined,
+      clienteId: clienteId === null ? "Selecione o cliente do equipamento." : undefined,
       marcaId: criandoMarca
         ? "Crie a marca ou cancele antes de continuar."
         : !marcaId
@@ -222,7 +216,8 @@ function EquipamentoForm({
           : undefined,
     }
     setErros(locais)
-    if (Object.values(locais).some(Boolean)) return
+    // clienteId === null já virou erro acima; repetir aqui só estreita o tipo.
+    if (Object.values(locais).some(Boolean) || clienteId === null) return
 
     setEnviando(true)
     try {
@@ -230,7 +225,7 @@ function EquipamentoForm({
       onSalvo(
         equipamento
           ? await atualizarEquipamento(token, equipamento.id, body)
-          : await criarEquipamento(token, { ...body, clienteId: Number(clienteId) })
+          : await criarEquipamento(token, { ...body, clienteId })
       )
     } catch (error) {
       setEnviando(false)
@@ -349,41 +344,23 @@ function EquipamentoForm({
             hint={
               clienteFixado
                 ? undefined
-                : clientes?.length === 0
-                  ? "Nenhum cliente ativo — cadastre o primeiro por aqui mesmo."
-                  : "Só aparecem clientes ativos."
+                : "Digite parte do nome ou do telefone. Só aparecem clientes ativos."
             }
           >
             {clienteFixado ? (
               <Input id="equip-cliente" value={clienteFixado.nome} disabled />
             ) : (
-              <Select
-                value={clienteId}
-                onValueChange={(valor) => {
-                  if (valor === CRIAR) return setCriandoCliente(true)
-                  setClienteId(valor)
+              <ClienteCombobox
+                id="equip-cliente"
+                value={clienteEscolhido}
+                onChange={(cliente) => {
+                  setClienteEscolhido(cliente)
                   setErros((atuais) => ({ ...atuais, clienteId: undefined }))
                 }}
-                disabled={!clientes}
-              >
-                <SelectTrigger
-                  id="equip-cliente"
-                  aria-invalid={erros.clienteId ? true : undefined}
-                  aria-describedby={erros.clienteId ? "equip-cliente-error" : undefined}
-                >
-                  <SelectValue placeholder={carregando ? "Carregando…" : "Selecione o cliente"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {clientes?.map((cliente) => (
-                    <SelectItem key={cliente.id} value={String(cliente.id)}>
-                      {cliente.nome}
-                    </SelectItem>
-                  ))}
-                  <CriarItem separador={(clientes?.length ?? 0) > 0}>
-                    Criar novo cliente
-                  </CriarItem>
-                </SelectContent>
-              </Select>
+                onCriar={() => setCriandoCliente(true)}
+                invalido={!!erros.clienteId}
+                descritoPor={erros.clienteId ? "equip-cliente-error" : "equip-cliente-hint"}
+              />
             )}
           </Field>
 
@@ -412,10 +389,7 @@ function EquipamentoForm({
         open={criandoCliente}
         onOpenChange={setCriandoCliente}
         onSalvo={(novo) => {
-          setClientes((atuais) =>
-            [...(atuais ?? []), novo].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
-          )
-          setClienteId(String(novo.id))
+          setClienteEscolhido(novo)
           setErros((atuais) => ({ ...atuais, clienteId: undefined }))
         }}
       />
