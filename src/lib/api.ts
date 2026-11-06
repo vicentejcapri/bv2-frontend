@@ -74,6 +74,14 @@ export function definirContaAtiva(id: number | null) {
   contaAtiva = id
 }
 
+/**
+ * Base da API. Em produção (Vercel) vem de VITE_API_URL, definido em
+ * `.env.production` (https://api.bv2.tech): o navegador chama a API direto, liberado
+ * pelo CORS do backend. Sem a variável (dev), cai no `/api` que o proxy do Vite
+ * repassa para o Spring em localhost:8080.
+ */
+const API_URL = (import.meta.env.VITE_API_URL ?? "/api").replace(/\/$/, "")
+
 type Opcoes = {
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE"
   body?: unknown
@@ -91,7 +99,7 @@ export async function apiFetch<T = void>(
 
   let resposta: Response
   try {
-    resposta = await fetch(`/api${caminho}`, {
+    resposta = await fetch(`${API_URL}${caminho}`, {
       method,
       headers,
       body: body === undefined ? undefined : JSON.stringify(body),

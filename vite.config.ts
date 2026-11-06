@@ -10,7 +10,8 @@ export default defineConfig({
     },
   },
   server: {
-    // O backend não libera CORS: em dev o Vite repassa /api para o Spring.
+    // Em dev o Vite repassa /api para o Spring local. Em produção o front chama
+    // VITE_API_URL (https://api.bv2.tech) direto — ver .env.production.
     proxy: {
       "/api": {
         target: "http://localhost:8080",
