@@ -1,0 +1,47 @@
+name: Deploy frontend (Vercel)
+
+# O projeto na Vercel e Hobby: o deploy automatico do Git bloqueia commits de quem
+# nao e o dono da conta. O Deploy Hook nao checa autor, entao todo push na main
+# passa por aqui: valida o build e manda a Vercel publicar o ultimo commit da main.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: vercel-prod
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Build e deploy na Vercel
+    runs-on: ubuntu-latest
+    steps:
+      - name: Conferir secret
+        env:
+          HOOK: ${{ secrets.VERCEL_DEPLOY_HOOK }}
+        run: |
+          if [ -z "$HOOK" ]; then
+            echo "::error::Secret VERCEL_DEPLOY_HOOK nao cadastrado (Settings > Secrets and variables > Actions)"
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      # Build quebrado nao chega na Vercel.
+      - run: npm ci
+      - run: npm run build
+
+      - name: Disparar Deploy Hook
+        env:
+          HOOK: ${{ secrets.VERCEL_DEPLOY_HOOK }}
+        run: |
+          resposta=$(curl -fsS -X POST "$HOOK")
+          echo "Vercel: $resposta"
