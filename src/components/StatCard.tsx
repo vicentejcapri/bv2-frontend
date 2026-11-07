@@ -42,23 +42,24 @@ export function StatCard({
   const TrendIcon = trend?.direction === "down" ? TrendingDown : TrendingUp
 
   return (
-    <Card className="p-5 transition-shadow duration-200 hover:shadow-card-hover">
-      <div className="flex items-start justify-between gap-3">
-        <p className="text-sm font-medium text-muted-foreground">{label}</p>
+    <Card className="min-w-0 p-4 transition-shadow duration-200 hover:shadow-card-hover sm:p-5">
+      <div className="flex items-start justify-between gap-2 sm:gap-3">
+        <p className="text-xs font-medium text-muted-foreground sm:text-sm">{label}</p>
         <span
           className={cn(
-            "flex size-9 shrink-0 items-center justify-center rounded-lg",
+            "flex size-7 shrink-0 items-center justify-center rounded-lg sm:size-9",
             TONE_CHIP[tone]
           )}
         >
-          <Icon className="size-[18px]" />
+          <Icon className="size-4 sm:size-[18px]" />
         </span>
       </div>
 
-      <div className="mt-3 flex items-baseline gap-2">
+      <div className="mt-2 flex flex-wrap items-baseline gap-x-2 sm:mt-3">
         <span
           className={cn(
-            "font-heading text-3xl font-semibold tracking-tight",
+            // No celular são 2 cards por linha: o valor encolhe para caber "R$ 99.999,99".
+            "break-words font-heading text-xl font-semibold tracking-tight tabular-nums sm:text-3xl",
             TONE_VALUE[tone]
           )}
         >

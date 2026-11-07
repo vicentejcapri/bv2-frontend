@@ -1,6 +1,8 @@
-import { useMemo, useState } from "react"
+import { useEffect, useState } from "react"
 import type { ReactNode } from "react"
+import type { DateRange } from "react-day-picker"
 import {
+  CalendarDays,
   ClipboardList,
   DollarSign,
   Receipt,
@@ -17,6 +19,8 @@ import {
 import { PageHeader } from "@/components/PageHeader"
 import { StatCard } from "@/components/StatCard"
 import { Button } from "@/components/ui/button"
+import { Calendar } from "@/components/ui/calendar"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import {
   Card,
   CardContent,
@@ -37,6 +41,12 @@ const PRESETS: { id: PresetId; label: string }[] = [
   { id: "12m", label: "12 meses" },
   { id: "ano", label: "Este ano" },
 ]
+
+/** "2026-11-07" -> Date à meia-noite local (new Date("2026-11-07") seria UTC). */
+function dataLocal(iso: string) {
+  const [ano, mes, dia] = iso.split("-").map(Number)
+  return new Date(ano, mes - 1, dia)
+}
 
 function isoLocal(data: Date) {
   const mes = String(data.getMonth() + 1).padStart(2, "0")
@@ -72,9 +82,9 @@ const BRL_COMPACTO = new Intl.NumberFormat("pt-BR", {
 const plural = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um : varios}`
 
 export function DashboardPage() {
-  const [preset, setPreset] = useState<PresetId>("30d")
-  // Recalcula só ao trocar de atalho, para não refazer a busca a cada render.
-  const periodo = useMemo(() => periodoDo(preset), [preset])
+  // Estado guarda o período pronto (strings): a identidade só muda quando o
+  // usuário aplica outro intervalo, então o usePainel não refaz a busca à toa.
+  const [periodo, setPeriodo] = useState<Periodo>(() => periodoDo("30d"))
   const { painel, erro, carregando, recarregar } = usePainel(periodo)
 
   return (
@@ -86,7 +96,7 @@ export function DashboardPage() {
             ? `Período de ${formatDataBR(painel.periodo.dataInicio)} a ${formatDataBR(painel.periodo.dataFim)}.`
             : "Visão geral da operação da oficina."
         }
-        actions={<SeletorPeriodo valor={preset} onChange={setPreset} />}
+        actions={<SeletorPeriodo valor={periodo} onChange={setPeriodo} />}
       />
 
       {erro && (
@@ -116,37 +126,122 @@ export function DashboardPage() {
   )
 }
 
+/** Acompanha um media query (ex.: 2 meses no calendário só a partir do sm). */
+function useMidia(query: string) {
+  const [casa, setCasa] = useState(() => window.matchMedia(query).matches)
+  useEffect(() => {
+    const mql = window.matchMedia(query)
+    const aoMudar = () => setCasa(mql.matches)
+    mql.addEventListener("change", aoMudar)
+    return () => mql.removeEventListener("change", aoMudar)
+  }, [query])
+  return casa
+}
+
+/**
+ * Período do dashboard: calendário de intervalo (dia inicial → dia final) com os
+ * atalhos de sempre embaixo. Só aplica com o intervalo completo, para não ir ao
+ * servidor no primeiro clique.
+ */
 function SeletorPeriodo({
   valor,
   onChange,
 }: {
-  valor: PresetId
-  onChange: (preset: PresetId) => void
+  valor: Periodo
+  onChange: (periodo: Periodo) => void
 }) {
+  const [aberto, setAberto] = useState(false)
+  const [rascunho, setRascunho] = useState<DateRange | undefined>()
+  const doisMeses = useMidia("(min-width: 640px)")
+  // Estável entre renders: endMonth/disabled novos a cada render fariam o calendário recalcular.
+  const [hoje] = useState(() => new Date())
+
+  const abrir = (proximo: boolean) => {
+    setAberto(proximo)
+    // Cada abertura começa do período aplicado.
+    if (proximo) setRascunho({ from: dataLocal(valor.dataInicio), to: dataLocal(valor.dataFim) })
+  }
+
+  const aplicar = (periodo: Periodo) => {
+    onChange(periodo)
+    setAberto(false)
+  }
+
+  const presetAtivo = PRESETS.find((p) => {
+    const periodo = periodoDo(p.id)
+    return periodo.dataInicio === valor.dataInicio && periodo.dataFim === valor.dataFim
+  })?.id
+
   return (
-    <div
-      role="radiogroup"
-      aria-label="Período"
-      className="inline-flex rounded-lg border border-border bg-card p-0.5"
-    >
-      {PRESETS.map((item) => (
-        <button
-          key={item.id}
-          type="button"
-          role="radio"
-          aria-checked={valor === item.id}
-          onClick={() => onChange(item.id)}
-          className={cn(
-            "rounded-md px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40",
-            valor === item.id
-              ? "bg-accent text-accent-foreground"
-              : "text-muted-foreground hover:text-foreground"
-          )}
+    <Popover open={aberto} onOpenChange={abrir}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          className="w-full justify-start gap-2 bg-card font-normal tabular-nums sm:w-auto"
+          aria-label={`Período: ${formatDataBR(valor.dataInicio)} a ${formatDataBR(valor.dataFim)}. Alterar período`}
         >
-          {item.label}
-        </button>
-      ))}
-    </div>
+          <CalendarDays className="text-accent" aria-hidden />
+          {formatDataBR(valor.dataInicio)}
+          <span className="text-muted-foreground" aria-hidden>
+            –
+          </span>
+          {formatDataBR(valor.dataFim)}
+        </Button>
+      </PopoverTrigger>
+
+      <PopoverContent align="start" className="w-auto max-w-[calc(100vw-1.5rem)] gap-3 p-3">
+        <Calendar
+          mode="range"
+          selected={rascunho}
+          onSelect={(intervalo) => {
+            setRascunho(intervalo)
+            // Com resetOnSelect o 1º clique vira {from, to: undefined}; o 2º fecha o
+            // intervalo (invertendo se for anterior ao início) e já aplica.
+            if (intervalo?.from && intervalo.to && rascunho?.from && rascunho.to === undefined) {
+              aplicar({ dataInicio: isoLocal(intervalo.from), dataFim: isoLocal(intervalo.to) })
+            }
+          }}
+          resetOnSelect
+          numberOfMonths={doisMeses ? 2 : 1}
+          defaultMonth={
+            rascunho?.from && doisMeses
+              ? new Date(rascunho.from.getFullYear(), rascunho.from.getMonth())
+              : dataLocal(valor.dataFim)
+          }
+          disabled={{ after: hoje }}
+          endMonth={hoje}
+        />
+
+        <p className="text-xs text-muted-foreground" aria-live="polite">
+          {rascunho?.from && !rascunho.to
+            ? `Início em ${formatDataBR(isoLocal(rascunho.from))}. Escolha o dia final.`
+            : "Toque no dia inicial e depois no final."}
+        </p>
+
+        <div
+          role="group"
+          aria-label="Atalhos de período"
+          className="grid grid-cols-2 gap-1.5 border-t border-border pt-3 sm:grid-cols-4"
+        >
+          {PRESETS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              aria-pressed={presetAtivo === item.id}
+              onClick={() => aplicar(periodoDo(item.id))}
+              className={cn(
+                "h-9 rounded-md px-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40",
+                presetAtivo === item.id
+                  ? "bg-accent text-accent-foreground"
+                  : "bg-muted/60 text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      </PopoverContent>
+    </Popover>
   )
 }
 
@@ -157,7 +252,7 @@ function Conteudo({ painel }: { painel: Painel }) {
   return (
     <>
       {/* Indicadores do período */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <StatCard
           label="Faturamento realizado"
           value={formatBRL(faturamento.faturamentoRealizado)}
@@ -351,9 +446,9 @@ function DashboardSkeleton() {
   const bloco = "animate-pulse rounded-xl border border-border bg-card"
   return (
     <div className="space-y-6" aria-busy aria-label="Carregando dashboard">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         {Array.from({ length: 4 }, (_, i) => (
-          <div key={i} className={cn(bloco, "h-[124px]")} />
+          <div key={i} className={cn(bloco, "h-[108px] sm:h-[124px]")} />
         ))}
       </div>
       <div className="grid gap-6 lg:grid-cols-2">

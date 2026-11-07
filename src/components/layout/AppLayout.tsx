@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react"
 import { Outlet, useLocation, useNavigate } from "react-router-dom"
-import { Loader2, Menu, Search, X } from "lucide-react"
+import { Loader2, Menu, X } from "lucide-react"
 
 import { ContaSelect } from "@/components/ContaSelect"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { findMenuItem } from "@/config/menu"
 import { useAuth } from "@/hooks/useAuth"
@@ -92,7 +91,7 @@ export function AppLayout() {
             <button
               type="button"
               onClick={() => setIsMobileNavOpen(false)}
-              className="absolute right-3 top-4 z-10 rounded-md p-1.5 text-sidebar-muted transition-colors hover:bg-sidebar-accent hover:text-white"
+              className="absolute right-2 top-3 z-10 flex size-10 items-center justify-center rounded-md text-sidebar-muted transition-colors hover:bg-sidebar-accent hover:text-white"
             >
               <X className="size-4" />
               <span className="sr-only">Fechar menu</span>
@@ -131,13 +130,6 @@ export function AppLayout() {
 
             {mostrarConta && <ContaSelect />}
 
-            <div className="relative hidden lg:block">
-              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Buscar ordem de serviço, cliente ou equipamento…"
-                className="w-96 bg-background pl-9"
-              />
-            </div>
           </header>
 
           {/*

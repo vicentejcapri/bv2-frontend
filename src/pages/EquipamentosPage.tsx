@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react"
-import { Loader2, Plus, Wrench } from "lucide-react"
+import { Loader2, Plus } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardFlush } from "@/components/ui/card"
@@ -119,14 +119,7 @@ export function EquipamentosPage() {
               <TableBody>
                 {equipamentos.map((eq) => (
                   <TableRow key={eq.id} className="group">
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-secondary text-secondary-foreground ring-1 ring-inset ring-border">
-                          <Wrench className="size-4" aria-hidden />
-                        </span>
-                        <span className="font-medium text-foreground">{eq.nome}</span>
-                      </div>
-                    </TableCell>
+                    <TableCell className="font-medium text-foreground">{eq.nome}</TableCell>
 
                     <TableCell className="text-muted-foreground">{eq.marca.nome}</TableCell>
 

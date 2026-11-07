@@ -7,7 +7,7 @@ import type { Pagina, ParamsListagem } from "@/lib/api"
 /** Espera entre a última tecla e a ida ao servidor. */
 const ATRASO_BUSCA_MS = 300
 
-const TAMANHO_PADRAO = 20
+const TAMANHO_PADRAO = 10
 
 /**
  * Estado de uma listagem paginada no servidor: página atual, busca com debounce e

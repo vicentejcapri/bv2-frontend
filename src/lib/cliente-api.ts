@@ -26,14 +26,26 @@ export function listarClientes(token: string, filtros: FiltrosCliente = {}) {
  * Clientes com o mesmo nome (sem caixa) e o mesmo telefone. Só serve para avisar:
  * o backend aceita o cadastro de qualquer jeito.
  */
-export function buscarPossiveisDuplicados(
+export async function buscarPossiveisDuplicados(
   token: string,
   body: ClienteInput,
   ignorarId?: number
 ) {
-  const query = new URLSearchParams({ nome: body.nome, telefone: body.telefone })
-  if (ignorarId !== undefined) query.set("ignorarId", String(ignorarId))
-  return apiFetch<Cliente[]>(`/clientes/possiveis-duplicados?${query}`, { token })
+  // O backend compara o telefone exato. Cadastros antigos foram salvos sem o 55
+  // (DDD + número) e os novos com ele: consulta as duas formas para o aviso não
+  // falhar justo no cliente que já existia.
+  const formas = new Set([body.telefone])
+  if (body.telefone.length > 11 && body.telefone.startsWith("55")) formas.add(body.telefone.slice(2))
+
+  const respostas = await Promise.all(
+    [...formas].map((telefone) => {
+      const query = new URLSearchParams({ nome: body.nome, telefone })
+      if (ignorarId !== undefined) query.set("ignorarId", String(ignorarId))
+      return apiFetch<Cliente[]>(`/clientes/possiveis-duplicados?${query}`, { token })
+    })
+  )
+  const porId = new Map(respostas.flat().map((cliente) => [cliente.id, cliente]))
+  return [...porId.values()].sort((a, b) => a.id - b.id)
 }
 
 export function criarCliente(token: string, body: ClienteInput) {

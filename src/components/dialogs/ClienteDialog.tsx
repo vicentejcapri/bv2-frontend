@@ -30,6 +30,23 @@ import { formatDataBR, maskTelefone } from "@/lib/format"
 
 type Erros = Partial<Record<"nome" | "telefone" | "geral", string>>
 
+/** Código do Brasil, fixo no campo: o WhatsApp do n8n precisa do número internacional. */
+const DDI = "55"
+
+/**
+ * Parte local (DDD + número) de um telefone salvo. Os novos são gravados com o 55
+ * na frente (12 ou 13 dígitos); os antigos, sem DDI, aparecem como estão.
+ */
+function telefoneLocal(salvo: string) {
+  const digitos = salvo.replace(/\D/g, "")
+  return digitos.length > 11 && digitos.startsWith(DDI) ? digitos.slice(DDI.length) : digitos
+}
+
+/** O que vai para a API: 55 + DDD + número, só dígitos. */
+function telefoneCompleto(mascarado: string) {
+  return DDI + mascarado.replace(/\D/g, "")
+}
+
 /**
  * Cadastro e edição do cliente no mesmo formulário: com `cliente` edita (PUT),
  * sem ele cadastra (POST). Quem abre é a página, que decide o modo.
@@ -70,7 +87,7 @@ function ClienteForm({
 }) {
   const { token, logout } = useAuth()
   const [nome, setNome] = useState(cliente?.nome ?? "")
-  const [telefone, setTelefone] = useState(maskTelefone(cliente?.telefone ?? ""))
+  const [telefone, setTelefone] = useState(maskTelefone(telefoneLocal(cliente?.telefone ?? "")))
   const [erros, setErros] = useState<Erros>({})
   const [enviando, setEnviando] = useState(false)
   // Cliente(s) com o mesmo nome e telefone: o formulário pausa e pede confirmação.
@@ -120,13 +137,13 @@ function ClienteForm({
     setErros(locais)
     if (Object.values(locais).some(Boolean)) return
 
-    const body = { nome: limpo, telefone: digitos }
+    const body = { nome: limpo, telefone: telefoneCompleto(telefone) }
 
     // Na edição sem mudar nome nem telefone não há o que avisar de novo.
     const mudouIdentidade =
       !cliente ||
       cliente.nome.toLowerCase() !== limpo.toLowerCase() ||
-      cliente.telefone !== digitos
+      cliente.telefone !== body.telefone
 
     if (mudouIdentidade) {
       setEnviando(true)
@@ -175,16 +192,28 @@ function ClienteForm({
           required
           error={erros.telefone}
         >
-          <Input
-            {...fieldProps("cliente-telefone", erros.telefone)}
-            value={telefone}
-            onChange={(event) => {
-              setTelefone(maskTelefone(event.target.value))
-              setDuplicados(null)
-            }}
-            inputMode="tel"
-            placeholder="(42) 99999-1111"
-          />
+          <div className="relative">
+            {/* DDI fixo: o usuário digita só DDD + número. */}
+            <span
+              className="pointer-events-none absolute inset-y-0 left-0 flex items-center border-r border-input pl-3 pr-2.5 text-sm text-muted-foreground"
+              aria-hidden
+            >
+              +55
+            </span>
+            <Input
+              {...fieldProps("cliente-telefone", erros.telefone)}
+              value={telefone}
+              onChange={(event) => {
+                // Só DDD + número: com o DDI no campo, um "55" colado seria duplicado.
+                setTelefone(maskTelefone(telefoneLocal(event.target.value).slice(0, 11)))
+                setDuplicados(null)
+              }}
+              inputMode="tel"
+              autoComplete="tel-national"
+              placeholder="(42) 99999-1111"
+              className="pl-[3.75rem]"
+            />
+          </div>
         </Field>
 
         {erros.geral && <AuthAlert tom="erro">{erros.geral}</AuthAlert>}
@@ -226,7 +255,7 @@ function ClienteForm({
               disabled={enviando}
               aria-busy={enviando}
               onClick={() =>
-                salvar({ nome: nome.trim(), telefone: telefone.replace(/\D/g, "") })
+                salvar({ nome: nome.trim(), telefone: telefoneCompleto(telefone) })
               }
             >
               {enviando && <Loader2 className="animate-spin" aria-hidden />}
