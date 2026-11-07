@@ -19,10 +19,10 @@ jobs:
   deploy:
     name: Build e deploy na Vercel
     runs-on: ubuntu-latest
-    # VERCEL_DEPLOY_HOOK esta cadastrado no environment "prod": sem esta linha o
+    # VERCEL_DEPLOY_HOOK esta cadastrado no environment "production": sem esta linha o
     # job nao enxerga o secret (chega vazio, sem erro).
     environment:
-      name: prod
+      name: production
       url: https://app.bv2.tech
     steps:
       - name: Conferir secret
@@ -30,7 +30,7 @@ jobs:
           HOOK: ${{ secrets.VERCEL_DEPLOY_HOOK }}
         run: |
           if [ -z "$HOOK" ]; then
-            echo "::error::Secret VERCEL_DEPLOY_HOOK nao encontrado no environment prod (Settings > Environments > prod)"
+            echo "::error::Secret VERCEL_DEPLOY_HOOK nao encontrado no environment production (Settings > Environments > production)"
             exit 1
           fi
 
