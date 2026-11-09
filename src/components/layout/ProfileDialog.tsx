@@ -36,6 +36,8 @@ import {
 } from "@/lib/usuario-api"
 import type { Usuario } from "@/lib/usuario-api"
 import { cn } from "@/lib/utils"
+import { ComAjuda } from "@/components/Ajuda"
+import { AJUDA } from "@/config/ajuda"
 
 type Aba = "dados" | "email" | "senha"
 
@@ -127,7 +129,9 @@ function PerfilConteudo({
   return (
     <>
       <DialogHeader>
-        <DialogTitle>Meu perfil</DialogTitle>
+        <ComAjuda conteudo={AJUDA.perfil[aba]} className="pr-8">
+          <DialogTitle>Meu perfil</DialogTitle>
+        </ComAjuda>
         <DialogDescription>
           {aba === "dados" && "Seu nome aparece no painel e nas ações registradas."}
           {aba === "email" && "O e-mail é o seu login. A troca só vale depois de confirmada."}

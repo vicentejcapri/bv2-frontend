@@ -37,6 +37,7 @@ import {
   listarServicos,
 } from "@/lib/servico-api"
 import type { Servico } from "@/lib/servico-api"
+import { AJUDA } from "@/config/ajuda"
 
 /** Diálogo aberto no momento: cadastro, edição ou confirmação de exclusão. */
 type Modal =
@@ -104,6 +105,7 @@ export function ServicosPage() {
     <>
       <PageHeader
         title="Serviços"
+        ajuda={AJUDA.servicos}
         description="Tabela de preços padronizados para agilizar orçamentos."
         actions={botaoNovo}
       />

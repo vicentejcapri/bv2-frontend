@@ -23,6 +23,8 @@ import { ApiError } from "@/lib/api"
 import { fieldProps } from "@/lib/form"
 import { atualizarUsuario, criarUsuario } from "@/lib/usuario-api"
 import type { Usuario } from "@/lib/usuario-api"
+import { ComAjuda } from "@/components/Ajuda"
+import { AJUDA } from "@/config/ajuda"
 
 type Erros = Partial<Record<"nome" | "email" | "senha" | "geral", string>>
 
@@ -132,7 +134,9 @@ function UsuarioForm({
   return (
     <DialogForm onSubmit={handleSubmit} noValidate>
       <DialogHeader>
-        <DialogTitle>{usuario ? "Editar usuário" : "Novo usuário"}</DialogTitle>
+        <ComAjuda conteudo={AJUDA.usuario} className="pr-8">
+          <DialogTitle>{usuario ? "Editar usuário" : "Novo usuário"}</DialogTitle>
+        </ComAjuda>
         <DialogDescription>
           {usuario
             ? "Só o nome muda por aqui. E-mail e senha são trocados pelo próprio usuário, no perfil."

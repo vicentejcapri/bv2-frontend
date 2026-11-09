@@ -35,6 +35,8 @@ import type { Equipamento } from "@/lib/equipamento-api"
 import { fieldProps } from "@/lib/form"
 import { criarMarca, listarMarcas } from "@/lib/marca-api"
 import type { Marca } from "@/lib/marca-api"
+import { ComAjuda } from "@/components/Ajuda"
+import { AJUDA } from "@/config/ajuda"
 
 type Erros = Partial<Record<"clienteId" | "marcaId" | "nome" | "geral", string>>
 
@@ -248,7 +250,9 @@ function EquipamentoForm({
     <>
       <DialogForm onSubmit={handleSubmit} noValidate>
         <DialogHeader>
-          <DialogTitle>{editando ? "Editar equipamento" : "Novo equipamento"}</DialogTitle>
+          <ComAjuda conteudo={AJUDA.equipamento} className="pr-8">
+            <DialogTitle>{editando ? "Editar equipamento" : "Novo equipamento"}</DialogTitle>
+          </ComAjuda>
           <DialogDescription>
             {editando
               ? "O cliente não pode ser trocado: o histórico de ordens de serviço é do equipamento."

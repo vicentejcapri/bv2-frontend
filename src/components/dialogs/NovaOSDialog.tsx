@@ -41,6 +41,8 @@ import { criarOrdem } from "@/lib/os-api"
 import type { OrdemServico } from "@/lib/os-api"
 import { listarServicos } from "@/lib/servico-api"
 import type { Servico } from "@/lib/servico-api"
+import { ComAjuda } from "@/components/Ajuda"
+import { AJUDA } from "@/config/ajuda"
 
 type Item = { equipamentoId: string; servicoId: string }
 type Erros = Partial<
@@ -276,7 +278,9 @@ function NovaOSForm({ onCriada }: { onCriada: (ordem: OrdemServico) => void }) {
     <>
       <DialogForm onSubmit={handleSubmit} noValidate>
         <DialogHeader>
-          <DialogTitle>Nova ordem de serviço</DialogTitle>
+          <ComAjuda conteudo={AJUDA.novaOS} className="pr-8">
+            <DialogTitle>Nova ordem de serviço</DialogTitle>
+          </ComAjuda>
           <DialogDescription>
             A ordem nasce em andamento e precisa de ao menos um serviço lançado.
           </DialogDescription>

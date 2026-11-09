@@ -21,6 +21,7 @@ import { ExcluirDialog } from "@/components/dialogs/ExcluirDialog"
 import { useListagem } from "@/hooks/useListagem"
 import { excluirEquipamento, listarEquipamentos } from "@/lib/equipamento-api"
 import type { Equipamento } from "@/lib/equipamento-api"
+import { AJUDA } from "@/config/ajuda"
 
 /** Diálogo aberto no momento: cadastro, edição ou confirmação de exclusão. */
 type Modal =
@@ -64,6 +65,7 @@ export function EquipamentosPage() {
     <>
       <PageHeader
         title="Equipamentos"
+        ajuda={AJUDA.equipamentos}
         description="Máquinas e dispositivos dos clientes cadastrados para manutenção."
         actions={botaoNovo}
       />

@@ -32,6 +32,7 @@ import { diasAtrasISO } from "@/lib/format"
 import { listarNotificacoes } from "@/lib/notificacao-api"
 import type { StatusNotificacao } from "@/lib/notificacao-api"
 import { numeroOS } from "@/lib/os"
+import { AJUDA } from "@/config/ajuda"
 
 /** Janela padrão da tela: o log cresce para sempre, a primeira carga não. */
 const PERIODOS: { valor: string; label: string; dias: number | null }[] = [
@@ -119,6 +120,7 @@ export function NotificacoesPage() {
     <>
       <PageHeader
         title="Notificações"
+        ajuda={AJUDA.notificacoes}
         description="Envios automáticos via WhatsApp, disparados quando a ordem de serviço muda para um status com notificação ligada."
         actions={
           <Button onClick={() => setGerenciando(true)}>

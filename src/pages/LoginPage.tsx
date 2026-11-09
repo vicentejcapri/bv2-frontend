@@ -13,6 +13,7 @@ import { useAuth } from "@/hooks/useAuth"
 import { ApiError } from "@/lib/api"
 import { validarEmail } from "@/lib/auth-api"
 import { fieldProps } from "@/lib/form"
+import { AJUDA } from "@/config/ajuda"
 
 type Erros = { email?: string; senha?: string; geral?: string }
 
@@ -79,7 +80,7 @@ export function LoginPage() {
   }
 
   return (
-    <AuthShell titulo="Bem vindo novamente à BV2!" descricao="Acesse agora nosso sistema.">
+    <AuthShell titulo="Bem vindo novamente à BV2!" descricao="Acesse agora nosso sistema." ajuda={AJUDA.login}>
       <form onSubmit={handleSubmit} noValidate className="space-y-4">
         {aviso && !erros.geral && (
           <AuthAlert tom="sucesso">{aviso}</AuthAlert>

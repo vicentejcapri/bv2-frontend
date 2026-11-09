@@ -40,6 +40,7 @@ import {
 } from "@/lib/os-api"
 import type { OrdemServico, StatusOs } from "@/lib/os-api"
 import { OS_LOOK } from "@/components/StatusBadge"
+import { AJUDA } from "@/config/ajuda"
 
 /** "Em aberto" junta dois status numa consulta só; "TODOS" não filtra. */
 type FiltroStatus = "EM_ABERTO" | "TODOS" | StatusOs
@@ -110,6 +111,7 @@ export function OrdensServicoPage() {
     <>
       <PageHeader
         title="Ordens de Serviço"
+        ajuda={AJUDA.ordensServico}
         description="Gerencie e acompanhe os serviços em andamento."
         actions={
           <Button variant="accent" onClick={() => setCriando(true)}>

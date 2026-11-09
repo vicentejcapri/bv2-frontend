@@ -2,9 +2,11 @@ import { useEffect, useState } from "react"
 import { Outlet, useLocation, useNavigate } from "react-router-dom"
 import { Loader2, Menu, X } from "lucide-react"
 
+import { Ajuda } from "@/components/Ajuda"
 import { ContaSelect } from "@/components/ContaSelect"
 import { Button } from "@/components/ui/button"
 import { TooltipProvider } from "@/components/ui/tooltip"
+import { AJUDA } from "@/config/ajuda"
 import { findMenuItem } from "@/config/menu"
 import { useAuth } from "@/hooks/useAuth"
 import { useConta } from "@/hooks/useConta"
@@ -128,7 +130,12 @@ export function AppLayout() {
               </p>
             </div>
 
-            {mostrarConta && <ContaSelect />}
+            {mostrarConta && (
+              <div className="flex items-center gap-1.5">
+                <ContaSelect />
+                <Ajuda conteudo={AJUDA.conta} />
+              </div>
+            )}
 
           </header>
 

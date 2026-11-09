@@ -24,6 +24,8 @@ import { fieldProps } from "@/lib/form"
 import { maskMoeda, parseMoeda } from "@/lib/format"
 import { atualizarServico, criarServico } from "@/lib/servico-api"
 import type { Servico } from "@/lib/servico-api"
+import { ComAjuda } from "@/components/Ajuda"
+import { AJUDA } from "@/config/ajuda"
 
 type Erros = Partial<Record<"nome" | "descricao" | "valor" | "geral", string>>
 
@@ -136,7 +138,9 @@ function ServicoForm({
   return (
     <DialogForm onSubmit={handleSubmit} noValidate>
       <DialogHeader>
-        <DialogTitle>{servico ? "Editar serviço" : "Novo serviço"}</DialogTitle>
+        <ComAjuda conteudo={AJUDA.servico} className="pr-8">
+          <DialogTitle>{servico ? "Editar serviço" : "Novo serviço"}</DialogTitle>
+        </ComAjuda>
         <DialogDescription>
           Valor de referência para agilizar orçamentos — pode ser ajustado em
           cada ordem de serviço.

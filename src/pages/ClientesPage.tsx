@@ -38,6 +38,7 @@ import {
 } from "@/lib/cliente-api"
 import type { Cliente } from "@/lib/cliente-api"
 import { maskTelefone } from "@/lib/format"
+import { AJUDA } from "@/config/ajuda"
 
 /** Diálogo aberto no momento: cadastro, edição ou confirmação de exclusão. */
 type Modal =
@@ -97,6 +98,7 @@ export function ClientesPage() {
     <>
       <PageHeader
         title="Clientes"
+        ajuda={AJUDA.clientes}
         description="Gerencie a carteira de clientes da oficina."
         actions={
           <Button variant="accent" onClick={() => abrir({ tipo: "novo" })}>

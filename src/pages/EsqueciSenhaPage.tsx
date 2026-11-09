@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input"
 import { ApiError } from "@/lib/api"
 import { solicitarRecuperacao, validarEmail } from "@/lib/auth-api"
 import { fieldProps } from "@/lib/form"
+import { AJUDA } from "@/config/ajuda"
 
 export function EsqueciSenhaPage() {
   const location = useLocation()
@@ -81,6 +82,7 @@ export function EsqueciSenhaPage() {
   return (
     <AuthShell
       titulo="Esqueci minha senha"
+      ajuda={AJUDA.esqueciSenha}
       descricao="Informe seu e-mail e enviaremos um link para criar uma nova senha."
     >
       <form onSubmit={handleSubmit} noValidate className="space-y-4">

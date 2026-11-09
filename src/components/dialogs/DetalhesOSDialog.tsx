@@ -20,6 +20,8 @@ import { formatBRL, formatDataBR, maskMoeda, parseMoeda } from "@/lib/format"
 import { numeroOS } from "@/lib/os"
 import { definirValorTotalOrdem, listarItensOrdem } from "@/lib/os-api"
 import type { ItemOs, OrdemServico } from "@/lib/os-api"
+import { ComAjuda } from "@/components/Ajuda"
+import { AJUDA } from "@/config/ajuda"
 
 /**
  * Leitura da ordem de serviço: cliente, o que foi feito em cada equipamento,
@@ -83,7 +85,9 @@ function Detalhes({
   return (
     <>
       <DialogHeader>
-        <DialogTitle>Ordem de serviço {numeroOS(ordem.id)}</DialogTitle>
+        <ComAjuda conteudo={AJUDA.detalhesOS} className="pr-8">
+          <DialogTitle>Ordem de serviço {numeroOS(ordem.id)}</DialogTitle>
+        </ComAjuda>
         <DialogDescription>
           Aberta em {formatDataBR(ordem.dataEntrada)} para {ordem.cliente.nome}.
         </DialogDescription>

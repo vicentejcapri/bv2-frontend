@@ -27,6 +27,8 @@ import {
 import type { Cliente, ClienteInput } from "@/lib/cliente-api"
 import { fieldProps } from "@/lib/form"
 import { formatDataBR, maskTelefone } from "@/lib/format"
+import { ComAjuda } from "@/components/Ajuda"
+import { AJUDA } from "@/config/ajuda"
 
 type Erros = Partial<Record<"nome" | "telefone" | "geral", string>>
 
@@ -165,7 +167,9 @@ function ClienteForm({
   return (
     <DialogForm onSubmit={handleSubmit} noValidate>
       <DialogHeader>
-        <DialogTitle>{cliente ? "Editar cliente" : "Novo cliente"}</DialogTitle>
+        <ComAjuda conteudo={AJUDA.cliente} className="pr-8">
+          <DialogTitle>{cliente ? "Editar cliente" : "Novo cliente"}</DialogTitle>
+        </ComAjuda>
         <DialogDescription>
           O telefone é usado para os avisos automáticos de WhatsApp.
         </DialogDescription>

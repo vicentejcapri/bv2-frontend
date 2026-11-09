@@ -40,6 +40,7 @@ import {
   listarUsuarios,
 } from "@/lib/usuario-api"
 import type { Usuario } from "@/lib/usuario-api"
+import { AJUDA } from "@/config/ajuda"
 
 /** Diálogo aberto no momento: cadastro, edição ou confirmação de exclusão. */
 type Modal =
@@ -104,6 +105,7 @@ export function UsuariosPage() {
     <>
       <PageHeader
         title="Usuários"
+        ajuda={AJUDA.usuarios}
         description="Quem acessa o sistema. Cada usuário tem a própria base de clientes, serviços e ordens."
         actions={
           <Button variant="accent" onClick={() => abrir({ tipo: "novo" })}>

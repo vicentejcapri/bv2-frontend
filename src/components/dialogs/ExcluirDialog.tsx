@@ -17,6 +17,9 @@ import {
 import { Input } from "@/components/ui/input"
 import { useAuth } from "@/hooks/useAuth"
 import { ApiError } from "@/lib/api"
+import { ComAjuda } from "@/components/Ajuda"
+import { AJUDA } from "@/config/ajuda"
+import type { ConteudoAjuda } from "@/config/ajuda"
 
 /**
  * Confirmação de remoção definitiva. O 409 (registro com vínculos, FK
@@ -35,6 +38,7 @@ export function ExcluirDialog({
   mensagemConflito,
   excluir,
   onExcluido,
+  ajuda = AJUDA.excluir,
 }: {
   open: boolean
   onOpenChange: (aberto: boolean) => void
@@ -46,6 +50,8 @@ export function ExcluirDialog({
   mensagemConflito: string
   excluir: (token: string) => Promise<unknown>
   onExcluido: () => void
+  /** Texto do botão de ajuda; o padrão serve a qualquer exclusão. */
+  ajuda?: ConteudoAjuda
 }) {
   const { token, logout } = useAuth()
   const [enviando, setEnviando] = useState(false)
@@ -90,7 +96,9 @@ export function ExcluirDialog({
     <Dialog open={open} onOpenChange={fechar}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{titulo}</DialogTitle>
+          <ComAjuda conteudo={ajuda} className="pr-8">
+            <DialogTitle>{titulo}</DialogTitle>
+          </ComAjuda>
           <DialogDescription>
             {nome && (
               <>

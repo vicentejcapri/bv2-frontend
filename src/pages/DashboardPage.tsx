@@ -32,6 +32,7 @@ import { usePainel } from "@/hooks/usePainel"
 import { formatBRL, formatDataBR, mesPorExtenso } from "@/lib/format"
 import type { Painel, Periodo, StatusOS } from "@/lib/painel-api"
 import { cn } from "@/lib/utils"
+import { AJUDA } from "@/config/ajuda"
 
 type PresetId = "30d" | "90d" | "12m" | "ano"
 
@@ -91,6 +92,7 @@ export function DashboardPage() {
     <>
       <PageHeader
         title="Dashboard"
+        ajuda={AJUDA.dashboard}
         description={
           painel
             ? `Período de ${formatDataBR(painel.periodo.dataInicio)} a ${formatDataBR(painel.periodo.dataFim)}.`

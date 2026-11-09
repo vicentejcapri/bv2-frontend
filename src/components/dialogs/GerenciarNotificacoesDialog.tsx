@@ -30,6 +30,8 @@ import {
 } from "@/lib/notificacao-api"
 import type { Placeholder, TemplateNotificacao } from "@/lib/notificacao-api"
 import { cn } from "@/lib/utils"
+import { ComAjuda } from "@/components/Ajuda"
+import { AJUDA } from "@/config/ajuda"
 
 /** Só a chave liga/desliga fica em rascunho: o texto não é editável aqui. */
 type Rascunho = Record<string, boolean>
@@ -145,7 +147,9 @@ function Conteudo({ onSalvo }: { onSalvo: () => void }) {
   return (
     <DialogForm onSubmit={handleSubmit} noValidate>
       <DialogHeader>
-        <DialogTitle>Gerenciar notificações</DialogTitle>
+        <ComAjuda conteudo={AJUDA.gerenciarNotificacoes} className="pr-8">
+          <DialogTitle>Gerenciar notificações</DialogTitle>
+        </ComAjuda>
         <DialogDescription>
           Escolha em quais mudanças de status o cliente recebe WhatsApp.
         </DialogDescription>

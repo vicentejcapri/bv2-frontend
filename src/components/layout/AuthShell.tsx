@@ -1,7 +1,9 @@
 import type { ReactNode } from "react"
 import { CheckCircle2, TriangleAlert } from "lucide-react"
 
+import { Ajuda } from "@/components/Ajuda"
 import { Card, CardContent } from "@/components/ui/card"
+import type { ConteudoAjuda } from "@/config/ajuda"
 import { cn } from "@/lib/utils"
 import bv2Logo from "@/assets/bv2_logo_sem_fundo.png"
 
@@ -12,10 +14,13 @@ import bv2Logo from "@/assets/bv2_logo_sem_fundo.png"
 export function AuthShell({
   titulo,
   descricao,
+  ajuda,
   children,
 }: {
   titulo: string
   descricao?: ReactNode
+  /** Botão de ajuda ao lado do título, nas telas com formulário. */
+  ajuda?: ConteudoAjuda
   children: ReactNode
 }) {
   return (
@@ -28,9 +33,12 @@ export function AuthShell({
             className="size-36 object-contain"
           />
           <div className="space-y-1">
-            <h1 className="font-heading text-xl font-semibold tracking-tight">
-              {titulo}
-            </h1>
+            <div className="flex items-center justify-center gap-1.5">
+              <h1 className="font-heading text-xl font-semibold tracking-tight">
+                {titulo}
+              </h1>
+              {ajuda && <Ajuda conteudo={ajuda} />}
+            </div>
             {descricao && (
               <p className="text-sm text-muted-foreground">{descricao}</p>
             )}

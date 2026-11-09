@@ -11,6 +11,7 @@ import { ApiError } from "@/lib/api"
 import { redefinirSenha } from "@/lib/auth-api"
 import { avisarCredenciaisAlteradas } from "@/lib/credenciais-canal"
 import { fieldProps } from "@/lib/form"
+import { AJUDA } from "@/config/ajuda"
 
 type Erros = { senhaNova?: string; senhaNovaConfirmacao?: string; geral?: string }
 
@@ -90,7 +91,7 @@ export function RedefinirSenhaPage() {
   }
 
   return (
-    <AuthShell titulo="Criar nova senha" descricao="Escolha uma senha que você não usa em outro lugar.">
+    <AuthShell titulo="Criar nova senha" descricao="Escolha uma senha que você não usa em outro lugar." ajuda={AJUDA.redefinirSenha}>
       <form onSubmit={handleSubmit} noValidate className="space-y-4">
         <Field
           id="senhaNova"
