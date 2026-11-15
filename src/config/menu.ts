@@ -18,17 +18,27 @@ export type MenuItem = {
   /** Só aparece e só abre para o MASTER. */
   somenteMaster?: boolean
   /**
-   * Restringe o item à conta de um e-mail, para manter uma tela fora do ar
-   * enquanto ela não está pronta para as demais. Vale para a conta em que se
-   * está operando, e não para quem está logado: o MASTER vê a tela ao escolher
-   * essa conta no seletor e a perde ao trocar para outra. É só interface — a API
-   * responde a quem chamar direto.
+   * Restringe o item às contas destes e-mails, para manter uma tela fora do ar
+   * enquanto ela não está pronta para as demais. Lista vazia = sem restrição.
+   * Vale para a conta em que se está operando, e não para quem está logado: o
+   * MASTER vê a tela ao escolher essa conta no seletor e a perde ao trocar para
+   * outra. É só interface — a API responde a quem chamar direto.
    */
-  restritoAoEmail?: string
+  restritoAosEmails?: string[]
 }
 
-/** Enquanto as notificações não abrem para todas as contas, só esta as vê. */
-export const EMAIL_NOTIFICACOES = "brunoh.montagna@gmail.com"
+/**
+ * Contas que veem Notificações, de VITE_EMAIL_NOTIFICACOES (e-mails separados por
+ * vírgula, sem diferenciar maiúsculas). Sem a variável, todas as contas veem.
+ * Vem do ambiente para liberar uma conta sem mexer no código (Vercel > Environment
+ * Variables, seguido de um novo deploy: o Vite embute o valor no build).
+ */
+export const EMAILS_NOTIFICACOES: string[] = String(
+  import.meta.env.VITE_EMAIL_NOTIFICACOES ?? ""
+)
+  .split(",")
+  .map((email) => email.trim().toLowerCase())
+  .filter(Boolean)
 
 /** Quem pode ver o item de menu e abrir a rota dele. Fonte única das duas regras. */
 export function podeVerItem(
@@ -37,7 +47,10 @@ export function podeVerItem(
 ) {
   // O cadastro de usuários é do sistema, não de uma conta: vale o papel de quem loga.
   if (item.somenteMaster && !isMaster) return false
-  if (item.restritoAoEmail && emailConta !== item.restritoAoEmail) return false
+  const permitidos = item.restritoAosEmails ?? []
+  if (permitidos.length > 0 && !permitidos.includes(emailConta?.trim().toLowerCase() ?? "")) {
+    return false
+  }
   return true
 }
 
@@ -68,7 +81,7 @@ export const menuGroups: MenuGroup[] = [
         description:
           "Envios automáticos via WhatsApp e mensagens personalizadas.",
         icon: MessageSquare,
-        restritoAoEmail: EMAIL_NOTIFICACOES,
+        restritoAosEmails: EMAILS_NOTIFICACOES,
       },
     ],
   },
